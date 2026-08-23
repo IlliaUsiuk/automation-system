@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: oklch(98% 0.008 75);
+      --surface: oklch(100% 0 0);
+      --surface-alt: oklch(96% 0.01 75);
+      --border: oklch(90% 0.012 75);
+      --text: oklch(22% 0.015 75);
+      --text-muted: oklch(48% 0.02 75);
+      --accent: oklch(62% 0.11 55);
+      --accent-ink: oklch(32% 0.07 55);
+      --accent-soft: oklch(94% 0.03 55);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif; color: var(--text); }
+    a { color: var(--accent-ink); text-decoration: none; }
+    a:hover { color: var(--accent); }
+    .sora { font-family: 'Sora', 'IBM Plex Sans', system-ui, sans-serif; }
+  </style>
+</helmet>
+<div style="height: 100%; width: 240px; background: var(--surface-alt); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 16px; gap: 30px; font-family: 'IBM Plex Sans', system-ui, sans-serif;">
+  <div style="display: flex; align-items: center; gap: 10px; padding: 0 8px;">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+      <circle cx="9" cy="9" r="6.5" stroke="oklch(62% 0.11 55)" stroke-width="1.6"/>
+      <circle cx="15" cy="15" r="6.5" stroke="oklch(22% 0.015 75)" stroke-width="1.6" opacity="0.3"/>
+    </svg>
+    <div class="sora" style="font-size: 14.5px; font-weight: 600; line-height: 1.25; color: var(--text);">Automation<br/>ROI</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 4px;">
+    <div style="{{registryRowStyle}} display: flex; align-items: center; gap: 11px; padding: 9px 11px; border-radius: 10px; font-size: 13.5px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/>
+        <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/>
+      </svg>
+      Registry
+    </div>
+    <div style="{{skillsRowStyle}} display: flex; align-items: center; gap: 11px; padding: 9px 11px; border-radius: 10px; font-size: 13.5px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="14.5" y="4" width="6.5" height="6.5" rx="1.5"/>
+        <rect x="9" y="14" width="6.5" height="6.5" rx="1.5"/>
+      </svg>
+      Skills Library
+    </div>
+  </div>
+
+  <div style="flex: 1;"></div>
+  <div style="padding: 0 8px; font-size: 11.5px; color: var(--text-muted); line-height: 1.5;">
+    Internal · Supplax
+  </div>
+</div>
+<script data-dc-script data-props='{"active":{"editor":"enum","default":"registry","options":["registry","skills"]}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const active = this.props.active ?? 'registry';
+    const on = 'background: var(--accent-soft); color: var(--accent-ink); font-weight: 600;';
+    const off = 'background: transparent; color: var(--text-muted); font-weight: 500;';
+    return {
+      registryRowStyle: active === 'registry' ? on : off,
+      skillsRowStyle: active === 'skills' ? on : off,
+    };
+  }
+}
+</script>
+</x-dc>
+</body>
+</html>

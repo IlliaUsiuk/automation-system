@@ -1,0 +1,12 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1320, "h": 900 },
+    { "file": "Detail.dc.html", "x": 1440, "y": 0, "w": 1320, "h": 900 },
+    { "file": "Skills.dc.html", "x": 2880, "y": 0, "w": 1320, "h": 900 },
+    { "file": "Sidebar.dc.html", "x": 1440, "y": 1020, "w": 240, "h": 340 }
+  ],
+  "annotations": [
+    { "id": "draft-note", "x": 0, "y": -110, "w": 420, "text": "Draft, static mockups — sample automations/skills shown for illustration. Filters and cards aren't wired up yet. Feedback welcome before this becomes the real build spec." }
+  ],
+  "launch": { "view": "canvas" }
+}

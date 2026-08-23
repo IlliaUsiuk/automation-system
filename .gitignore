@@ -1,0 +1,38 @@
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+coverage/
+*.log
+.env
+.env.local
+.DS_Store
+
+# Personal Claude Code tool permissions (machine-specific paths) - a real
+# team-shared settings.json would be authored deliberately, not accumulated.
+.claude/settings.json
+
+# Python (this project is Flask, not the JS stack the rows above cover)
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# SQLite DB - contains real user password hashes and per-automator api_key
+# values (see src/models.py User.api_key). Never commit real data.
+data/portfolio.db
+*.db
+*.sqlite3
+
+# data/README.md: raw/interim/processed/external are typically gitignored
+# (large/binary) - the folders stay via .gitkeep, their contents don't.
+data/raw/*
+data/interim/*
+data/processed/*
+data/external/*
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+!data/external/.gitkeep

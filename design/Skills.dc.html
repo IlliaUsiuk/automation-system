@@ -1,0 +1,111 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: oklch(98% 0.008 75);
+      --surface: oklch(100% 0 0);
+      --surface-alt: oklch(96% 0.01 75);
+      --border: oklch(90% 0.012 75);
+      --text: oklch(22% 0.015 75);
+      --text-muted: oklch(48% 0.02 75);
+      --accent: oklch(62% 0.11 55);
+      --accent-ink: oklch(32% 0.07 55);
+      --accent-soft: oklch(94% 0.03 55);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif; color: var(--text); }
+    a { color: var(--accent-ink); text-decoration: none; }
+    a:hover { color: var(--accent); }
+    .sora { font-family: 'Sora', 'IBM Plex Sans', system-ui, sans-serif; }
+    .skill-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+      padding: 20px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
+      cursor: pointer; transition: box-shadow .15s ease, border-color .15s ease;
+    }
+    .skill-card:hover { box-shadow: 0 6px 20px oklch(22% 0.02 75 / 8%); border-color: oklch(85% 0.015 75); }
+  </style>
+</helmet>
+<div style="width: 1320px; height: 900px; display: flex; background: var(--bg); font-family: 'IBM Plex Sans', system-ui, sans-serif;">
+  <dc-import name="Sidebar" active="skills" hint-size="240px,900px"></dc-import>
+
+  <div style="flex: 1; padding: 32px 36px; display: flex; flex-direction: column; gap: 20px; overflow: hidden;">
+    <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+      <div>
+        <div class="sora" style="font-size: 21px; font-weight: 600;">Skills Library</div>
+        <div style="font-size: 13.5px; color: var(--text-muted); margin-top: 4px;">
+          Reusable skills that automations draw on — synced from GitHub.
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; padding: 8px 13px; border-radius: 10px; background: var(--surface-alt); border: 1px solid var(--border); font-size: 12px; color: var(--text-muted);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="9" r="2"/>
+          <path d="M6 8V16"/><path d="M6 14.5c0-2.6 2.1-3.9 5-3.9h5.4"/>
+        </svg>
+        Synced from GitHub
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="flex: 1; max-width: 320px; display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted);">
+          <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+        </svg>
+        <span style="font-size: 13px; color: var(--text-muted);">Search skills…</span>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; overflow: hidden;">
+      <sc-for list="{{skills}}" as="s" hint-placeholder-count="9">
+        <div class="skill-card">
+          <div style="{{s.iconBg}} width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+            <div style="{{s.iconColor}} display: flex; width: 22px; height: 22px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+                <path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9L12 3z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="sora" style="font-size: 14.5px; font-weight: 600;">{{s.name}}</div>
+          <div style="font-size: 12px; color: var(--text-muted); line-height: 1.5;">{{s.description}}</div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: auto; padding-top: 6px;">Used by {{s.usedBy}} automations</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    const defs = [
+      { name: 'PDF Extraction', hue: 195, usedBy: 4, description: 'Pulls structured fields out of PDF documents.' },
+      { name: 'Email Parsing', hue: 275, usedBy: 6, description: 'Reads inbound emails and extracts key fields.' },
+      { name: 'Slack Notifier', hue: 148, usedBy: 5, description: 'Posts messages and alerts into Slack channels.' },
+      { name: 'Web Scraper', hue: 55, usedBy: 3, description: 'Collects structured data from public web pages.' },
+      { name: 'OCR Reader', hue: 15, usedBy: 2, description: 'Converts scanned images into readable text.' },
+      { name: 'Data Deduplication', hue: 195, usedBy: 3, description: 'Finds and merges duplicate records in a dataset.' },
+      { name: 'Currency Converter', hue: 275, usedBy: 2, description: 'Converts monetary values between currencies.' },
+      { name: 'Calendar Sync', hue: 148, usedBy: 4, description: 'Keeps events in sync across calendar tools.' },
+      { name: 'PII Redactor', hue: 15, usedBy: 3, description: 'Detects and masks personal data before it is stored.' },
+    ];
+    const skills = defs.map((s) => ({
+      name: s.name,
+      description: s.description,
+      usedBy: s.usedBy,
+      iconBg: `background: oklch(93% 0.03 ${s.hue});`,
+      iconColor: `color: oklch(38% 0.09 ${s.hue});`,
+    }));
+    return { skills };
+  }
+}
+</script>
+</x-dc>
+</body>
+</html>

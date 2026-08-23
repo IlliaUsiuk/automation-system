@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% set active_nav = 'registry' %}
+{% block title %}Синхронізація з GitHub{% endblock %}
+{% block content %}
+<div class="page-title sora">Синхронізувати з GitHub</div>
+<div class="page-subtitle" style="margin-bottom: 1rem;">
+  Візьме README.md і ROI.md з репозиторію (те, що вже написав stage-0-supplax) і заповнить картку сам.
+</div>
+<form method="post" class="form">
+  <label>Посилання на репозиторій
+    <input type="url" name="repo_url" required placeholder="https://github.com/owner/repo">
+  </label>
+  <label>Slug (за замовчуванням — назва репозиторію)
+    <input type="text" name="slug" pattern="[a-z0-9\-]*" placeholder="залишити порожнім, щоб взяти з репо">
+  </label>
+  <label>Власник автоматизації
+    <select name="owner_id" required>
+      {% for u in users %}<option value="{{ u.id }}" {% if u.id == current_user.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Статус
+    <select name="status">
+      {% for s in statuses %}<option value="{{ s.value }}">{{ s.label }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Відділ(и) <span class="page-subtitle" style="margin:0;">(README/ROI.md цього не містять — вкажи сам)</span>
+    <select name="departments" multiple size="4">
+      {% for d in departments %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <button type="submit" class="btn btn-primary">Синхронізувати</button>
+</form>
+{% endblock %}

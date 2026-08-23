@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% set active_nav = 'registry' %}
+{% block title %}Автоматизації{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="page-title sora">Automation Registry</div>
+    <div class="page-subtitle">Кожна автоматизація в Supplax — що вона робить, хто нею володіє, і що вона дає.</div>
+  </div>
+  {% if current_user.is_admin %}
+  <div style="display:flex; gap:8px;">
+    <a class="btn" href="{{ url_for('automation_import_github') }}">Синхронізувати з GitHub</a>
+    <a class="btn btn-primary" href="{{ url_for('automation_new') }}">+ Додати автоматизацію</a>
+  </div>
+  {% endif %}
+</div>
+
+<form class="toolbar" method="get">
+  <div class="search-box">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted); flex-shrink:0;">
+      <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+    </svg>
+    <input type="text" name="q" placeholder="Пошук автоматизацій…" value="{{ search }}" onchange="this.form.submit()">
+  </div>
+  <div class="toolbar-divider"></div>
+  <div class="pill-filters">
+    <a class="pill-filter {{ 'active' if not active_department }}" href="{{ url_for('automations_list', status=active_status) }}">Всі</a>
+    {% for d in departments %}
+    <a class="pill-filter" style="{% if active_department == d.id %}background: oklch(35% 0.09 {{ d.hue }}); color: #fff; border-color: oklch(35% 0.09 {{ d.hue }});{% endif %}"
+       href="{{ url_for('automations_list', status=active_status, department=d.id) }}">{{ d.name }}</a>
+    {% endfor %}
+  </div>
+  <select class="select-plain" name="status" onchange="this.form.submit()">
+    <option value="">Всі статуси</option>
+    {% for s in statuses %}
+    <option value="{{ s.value }}" {% if active_status == s.value %}selected{% endif %}>{{ s.label }} ({{ counts[s] }})</option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if automations %}
+<div class="grid-3">
+  {% for a in automations %}
+  <a class="card" href="{{ url_for('automation_detail', slug=a.slug) }}">
+    <div class="card-row">
+      {% if a.departments %}<div class="tag" style="{{ a.departments[0].pill_style }}">{{ a.departments[0].name }}</div>{% else %}<span></span>{% endif %}
+      <div class="status-dot-row">
+        <span class="status-dot" style="--dot-color: {{ a.status.dot_color }}"></span>
+        <span class="status-label">{{ a.status.label }}</span>
+      </div>
+    </div>
+    <div>
+      <div class="card-name sora">{{ a.name }}</div>
+      <div class="card-desc">{{ a.one_liner or "" }}</div>
+    </div>
+    <div class="card-divider"></div>
+    <div class="card-row">
+      <div class="card-roi">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="8.2"/><path d="M12 7.3v5l3.3 1.9"/>
+        </svg>
+        {% if a.roi and a.roi.measured_value %}{{ a.roi.measured_value }}{% elif a.roi %}оцінка{% else %}—{% endif %}
+      </div>
+      <div class="card-owner">
+        <span class="avatar">{{ a.owner.initials }}</span>
+        <span class="owner-name">{{ a.owner.name }}</span>
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <p>Поки немає жодної автоматизації.</p>
+  {% if current_user.is_admin %}
+  <a class="btn btn-primary" href="{{ url_for('automation_new') }}">Додати першу</a>
+  {% else %}
+  <p>Зверніться до адміністратора.</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

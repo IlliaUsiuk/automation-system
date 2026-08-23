@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% set active_nav = 'registry' %}
+{% block title %}Нова автоматизація{% endblock %}
+{% block content %}
+<div class="page-title sora">Додати автоматизацію</div>
+<form method="post" class="form" style="margin-top: 1rem;">
+  <label>Slug (унікальний, латиницею)
+    <input type="text" name="slug" required pattern="[a-z0-9\-]+" placeholder="stage-0-forecast">
+  </label>
+  <label>Назва
+    <input type="text" name="name" required>
+  </label>
+  <label>Короткий опис
+    <input type="text" name="one_liner">
+  </label>
+  <label>Статус
+    <select name="status">
+      {% for s in statuses %}<option value="{{ s.value }}">{{ s.label }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Відділ(и)
+    <select name="departments" multiple size="4">
+      {% for d in departments %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Скіли, що використовуються
+    <select name="skills" multiple size="3">
+      {% for s in skills %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Посилання на репозиторій (необов'язково)
+    <input type="url" name="repo_url">
+  </label>
+  <label>Посилання на задачу в ClickUp (необов'язково)
+    <input type="url" name="clickup_url">
+  </label>
+  <fieldset>
+    <legend>ROI (можна оцінку, без реальних цифр)</legend>
+    <label>Гіпотеза
+      <textarea name="hypothesis" rows="2"></textarea>
+    </label>
+    <label>Як вимірюємо
+      <textarea name="metric_description" rows="2"></textarea>
+    </label>
+    <label>Стан
+      <select name="confidence">
+        <option value="estimated">Estimated</option>
+        <option value="measured">Measured</option>
+      </select>
+    </label>
+  </fieldset>
+  <button type="submit" class="btn btn-primary">Зберегти</button>
+</form>
+{% endblock %}

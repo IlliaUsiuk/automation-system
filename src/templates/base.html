@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Портфель автоматизацій{% endblock %} — Supplax</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  {% if current_user.is_authenticated %}
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="sidebar-brand" href="{{ url_for('automations_list') }}" style="text-decoration:none;">
+        <svg class="sidebar-brand-mark" width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <circle cx="9" cy="9" r="6.5" stroke="oklch(62% 0.11 55)" stroke-width="1.6"/>
+          <circle cx="15" cy="15" r="6.5" stroke="oklch(22% 0.015 75)" stroke-width="1.6" opacity="0.3"/>
+        </svg>
+        <span class="sidebar-brand-text sora">Automation<br>ROI</span>
+      </a>
+      <nav class="sidebar-nav">
+        <a href="{{ url_for('automations_list') }}" class="{{ 'active' if active_nav == 'registry' }}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/>
+            <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/>
+          </svg>
+          Автоматизації
+        </a>
+        <a href="{{ url_for('skills_library') }}" class="{{ 'active' if active_nav == 'skills' }}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="14.5" y="4" width="6.5" height="6.5" rx="1.5"/>
+            <rect x="9" y="14" width="6.5" height="6.5" rx="1.5"/>
+          </svg>
+          Бібліотека скіллів
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <a href="{{ url_for('automator_profile', user_id=current_user.id) }}">{{ current_user.name }}</a>
+          · <a href="{{ url_for('logout') }}">Вийти</a>
+        </div>
+        <div class="sidebar-footer-text">Internal · Supplax</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      {% include "_flash.html" %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  {% else %}
+  {% include "_flash.html" %}
+  {% block login_content %}{% endblock %}
+  {% endif %}
+</body>
+</html>

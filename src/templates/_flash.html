@@ -1,0 +1,5 @@
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <div class="flash">{% for m in messages %}<p style="margin:0">{{ m }}</p>{% endfor %}</div>
+  {% endif %}
+{% endwith %}

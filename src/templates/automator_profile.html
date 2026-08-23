@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% set active_nav = 'registry' %}
+{% block title %}{{ automator.name }}{% endblock %}
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('automations_list') }}">Автоматизації</a>
+  <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l7 6-7 6"/></svg>
+  <span>{{ automator.name }}</span>
+</div>
+
+<div class="detail-head">
+  <div class="detail-title-row">
+    <span class="avatar lg">{{ automator.initials }}</span>
+    <div>
+      <div class="detail-title sora">{{ automator.name }}</div>
+      <div class="page-subtitle">{{ automator.email }} · {{ "Адміністратор" if automator.is_admin else "Автоматизатор" }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-title sora">Автоматизації</div>
+  {% if automator.automations %}
+  <div class="grid-3">
+    {% for a in automator.automations %}
+    <a class="card" href="{{ url_for('automation_detail', slug=a.slug) }}">
+      <div class="card-row">
+        {% if a.departments %}<div class="tag" style="{{ a.departments[0].pill_style }}">{{ a.departments[0].name }}</div>{% else %}<span></span>{% endif %}
+        <div class="status-dot-row">
+          <span class="status-dot" style="--dot-color: {{ a.status.dot_color }}"></span>
+          <span class="status-label">{{ a.status.label }}</span>
+        </div>
+      </div>
+      <div class="card-name sora">{{ a.name }}</div>
+      <div class="card-desc">{{ a.one_liner or "" }}</div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="color:var(--text-muted); font-size:13px; margin:0;">Поки жодної автоматизації не додано.</p>
+  {% endif %}
+</div>
+{% endblock %}
