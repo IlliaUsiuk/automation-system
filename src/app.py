@@ -277,6 +277,7 @@ def register_routes(app):
                 flash(str(e))
                 return redirect(url_for("automation_import_github"))
             except Exception:
+                app.logger.exception("GitHub import failed for %s", repo_url)
                 flash("Не вдалося звернутися до GitHub — перевір посилання і чи репозиторій публічний "
                       "(або що GITHUB_TOKEN в .env дійсний, якщо приватний).")
                 return redirect(url_for("automation_import_github"))

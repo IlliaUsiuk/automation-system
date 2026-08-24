@@ -60,8 +60,9 @@ def fetch_raw_file(owner, repo, path, branch):
     bootstrapped by an older stage-0-supplax run, or one that isn't an
     automation, may not have ROI.md - that's a real case, not an error)."""
     url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
+    req = urllib.request.Request(url, headers=_github_headers())
     try:
-        with urllib.request.urlopen(url, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:
             return resp.read().decode("utf-8")
     except urllib.error.HTTPError as e:
         if e.code == 404:
