@@ -132,6 +132,29 @@
       {% endif %}
     </div>
 
+    {% if automation.todo_items %}
+    {% set pending = automation.todo_items|rejectattr('done')|list %}
+    {% set done = automation.todo_items|selectattr('done')|list %}
+    <div class="panel">
+      <div class="panel-title sora">Плани</div>
+      <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:10px;">
+        Виконано {{ done|length }} з {{ automation.todo_items|length }}
+      </div>
+      {% if pending %}
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        {% for t in pending %}
+        <div style="display:flex; align-items:flex-start; gap:8px; font-size:13px;">
+          <span style="width:14px; height:14px; border:1.5px solid var(--border); border-radius:4px; flex-shrink:0; margin-top:2px;"></span>
+          <span>{{ t.text }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="font-size:12.5px; color:var(--text-muted); margin:0;">Все заплановане вже зроблено.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+
     {% if automation.review_log %}
     <div class="panel">
       <div class="panel-title sora">Журнал перевірок</div>

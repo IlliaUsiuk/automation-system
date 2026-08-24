@@ -157,6 +157,10 @@ class Automation(db.Model):
         "AutomationPage", back_populates="automation", cascade="all, delete-orphan",
         order_by="AutomationPage.order_index",
     )
+    todo_items = db.relationship(
+        "AutomationTodoItem", back_populates="automation", cascade="all, delete-orphan",
+        order_by="AutomationTodoItem.order_index",
+    )
 
 
 class ROIEntry(db.Model):
@@ -220,6 +224,20 @@ class ReviewLogEntry(db.Model):
     created_at = db.Column(db.DateTime, default=_now)
 
     automation = db.relationship("Automation", back_populates="review_log")
+
+
+class AutomationTodoItem(db.Model):
+    """One `- [ ]`/`- [x]` line from the automation's own TODO.md - stage-0-
+    supplax already creates this file per project (deliberately empty at
+    bootstrap, "fills up from real work" per its own template comment); this
+    just reads it, it doesn't ask automators to maintain anything new."""
+    id = db.Column(db.Integer, primary_key=True)
+    automation_id = db.Column(db.Integer, db.ForeignKey("automation.id"), nullable=False)
+    text = db.Column(db.Text, nullable=False)
+    done = db.Column(db.Boolean, nullable=False, default=False)
+    order_index = db.Column(db.Integer, nullable=False, default=0)
+
+    automation = db.relationship("Automation", back_populates="todo_items")
 
 
 class AutomationPage(db.Model):

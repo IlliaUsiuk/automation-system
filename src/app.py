@@ -13,6 +13,7 @@ from .extensions import db, login_manager
 from .models import (
     Automation,
     AutomationPage,
+    AutomationTodoItem,
     Comparison,
     Connection,
     Department,
@@ -176,6 +177,7 @@ def register_routes(app):
         roi_text = github_sync.fetch_raw_file(owner_gh, repo, "ROI.md", branch)
         summary_text = github_sync.fetch_raw_file(owner_gh, repo, "summary/SUMMARY.md", branch)
         backlog_text = github_sync.fetch_raw_file(owner_gh, repo, "backlog/BACKLOG.md", branch)
+        todo_text = github_sync.fetch_raw_file(owner_gh, repo, "TODO.md", branch)
         latest_commit = github_sync.fetch_latest_commit(owner_gh, repo, branch)
 
         title, one_liner = github_sync.parse_readme(readme_text)
@@ -262,6 +264,13 @@ def register_routes(app):
                 ReviewLogEntry(round_label=e["round_label"], found=e["found"],
                                 changed=e["changed"], rejected=e["rejected"], order_index=i)
                 for i, e in enumerate(backlog_entries)
+            ]
+
+        todo_items = github_sync.parse_todo_md(todo_text)
+        if todo_items:
+            automation.todo_items = [
+                AutomationTodoItem(text=t["text"], done=t["done"], order_index=i)
+                for i, t in enumerate(todo_items)
             ]
 
         return automation, warnings

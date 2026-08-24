@@ -233,6 +233,21 @@ def parse_backlog_md(text, limit=5):
     return entries[-limit:] if limit else entries
 
 
+_TODO_ITEM_RE = re.compile(r"^\s*-\s*\[([ xX])\]\s+(.+?)\s*$", re.MULTILINE)
+
+
+def parse_todo_md(text):
+    """Parses TODO.md's plain '- [ ]'/'- [x]' checklist lines - the file
+    stage-0-supplax already creates per project (empty at bootstrap, filled
+    from real work as it happens). No fixed sections here, unlike ROI.md/
+    SUMMARY.md - it's just a flat list, in file order. Returns a list of
+    {text, done}, in the order they appear in the file."""
+    if not text:
+        return []
+    return [{"text": m.group(2).strip(), "done": m.group(1).lower() == "x"}
+            for m in _TODO_ITEM_RE.finditer(text)]
+
+
 def roi_fields_from_sections(sections):
     """Maps ROI.md's section names to ROIEntry's columns. Confidence is read
     from the template's own "Estimated" / "Measured (as of ...)" convention -
