@@ -27,10 +27,32 @@ def _github_headers():
 
 
 def default_branch(owner, repo):
-    req = urllib.request.Request(f"https://api.github.com/repos/{owner}/{repo}", headers=_github_headers())
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-    return data.get("default_branch", "main")
+    """Tries api.github.com first (gives the real default branch name in one
+    call), but that endpoint is unauthenticated-rate-limited and has been
+    observed to hang/timeout in this environment even well under the rate
+    limit - raw.githubusercontent.com has not. Falls back to guessing
+    main/master directly against the raw host, which is what every fetch
+    call needs to work anyway."""
+    try:
+        req = urllib.request.Request(f"https://api.github.com/repos/{owner}/{repo}", headers=_github_headers())
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        return data.get("default_branch") or "main"
+    except Exception:
+        pass
+
+    for branch in ("main", "master"):
+        req = urllib.request.Request(
+            f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/README.md",
+            headers=_github_headers())
+        try:
+            with urllib.request.urlopen(req, timeout=10):
+                return branch
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                continue
+            raise
+    raise RuntimeError(f"could not resolve a branch for {owner}/{repo} (tried main, master)")
 
 
 def fetch_raw_file(owner, repo, path, branch):
