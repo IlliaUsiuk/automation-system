@@ -138,6 +138,89 @@ def register_routes(app):
             return redirect(url_for("automation_detail", slug=automation.slug))
         return render_template("automation_form.html", departments=departments, skills=skills, statuses=Status, automation=None)
 
+    def sync_automation_from_github(automation, repo_url, owner_id, form_status, selected_dept_ids, slug=None):
+        """Shared by the first-time import form and the per-automation
+        'Оновити з GitHub' button: fetch README.md/ROI.md/summary/SUMMARY.md
+        and apply them to `automation` (a new unsaved instance, or an
+        existing one being refreshed). Raises on a GitHub fetch failure -
+        callers turn that into a flash message."""
+        parsed = github_sync.parse_repo_url(repo_url)
+        if not parsed:
+            raise ValueError("Не схоже на посилання на GitHub-репозиторій "
+                              "(очікую https://github.com/власник/репо).")
+        owner_gh, repo = parsed
+
+        branch = github_sync.default_branch(owner_gh, repo)
+        readme_text = github_sync.fetch_raw_file(owner_gh, repo, "README.md", branch)
+        roi_text = github_sync.fetch_raw_file(owner_gh, repo, "ROI.md", branch)
+        summary_text = github_sync.fetch_raw_file(owner_gh, repo, "summary/SUMMARY.md", branch)
+
+        title, one_liner = github_sync.parse_readme(readme_text)
+        roi_sections = github_sync.parse_roi_md(roi_text)
+        summary = github_sync.summary_fields_from_sections(
+            github_sync.parse_markdown_sections(summary_text))
+
+        if automation is None:
+            automation = Automation(slug=slug or repo.lower(), owner_id=owner_id,
+                                     name=summary["name"] or title or repo)
+            db.session.add(automation)
+        # summary/SUMMARY.md is the purpose-built contract - prefer it over
+        # README's prose whenever it's actually present.
+        automation.name = summary["name"] or title or automation.name
+        automation.one_liner = summary["one_liner"] or one_liner or automation.one_liner
+        automation.description = summary["description"] or automation.description
+        automation.repo_url = repo_url
+        automation.owner_id = owner_id
+
+        warnings = []
+        if form_status:
+            automation.status = Status(form_status)
+        elif summary["status"]:
+            try:
+                automation.status = Status(summary["status"])
+            except ValueError:
+                warnings.append(f"Невідомий статус '{summary['status']}' у summary/SUMMARY.md — залишив попередній.")
+
+        if selected_dept_ids:
+            automation.departments = Department.query.filter(Department.id.in_(selected_dept_ids)).all()
+        elif summary["departments"]:
+            depts = []
+            for name in summary["departments"]:
+                dept = Department.query.filter_by(name=name).first()
+                if not dept:
+                    dept = Department(name=name, hue=hue_for(name))
+                    db.session.add(dept)
+                depts.append(dept)
+            automation.departments = depts
+
+        if summary["connections"]:
+            links = []
+            skipped = []
+            for c in summary["connections"]:
+                target = Automation.query.filter_by(slug=c["slug"]).first()
+                if target and target.id != automation.id:
+                    links.append(Connection(connected_automation_id=target.id,
+                                             relationship_type=c["relationship_type"]))
+                elif c["slug"]:
+                    skipped.append(c["slug"])
+            if links:
+                automation.connections = links
+            if skipped:
+                warnings.append("Не знайдено (ще?) автоматизації для зв'язку: " + ", ".join(skipped))
+
+        if roi_sections:
+            fields = github_sync.roi_fields_from_sections(roi_sections)
+            if automation.roi is None:
+                automation.roi = ROIEntry()
+            automation.roi.hypothesis = fields["hypothesis"] or automation.roi.hypothesis
+            automation.roi.metric_description = fields["metric_description"] or automation.roi.metric_description
+            automation.roi.confidence = fields["confidence"]
+            automation.roi.measured_value = fields["measured_value"] or automation.roi.measured_value
+        elif not roi_text:
+            warnings.append("ROI.md у репозиторії не знайдено.")
+
+        return automation, warnings
+
     @app.route("/automations/import-github", methods=["GET", "POST"])
     @login_required
     @admin_required
@@ -146,93 +229,46 @@ def register_routes(app):
         departments = Department.query.order_by(Department.name).all()
         if request.method == "POST":
             repo_url = request.form["repo_url"].strip()
-            parsed = github_sync.parse_repo_url(repo_url)
-            if not parsed:
-                flash("Не схоже на посилання на GitHub-репозиторій "
-                      "(очікую https://github.com/власник/репо).")
-                return redirect(url_for("automation_import_github"))
-            owner_gh, repo = parsed
-
+            slug = request.form.get("slug", "").strip() or None
+            existing = Automation.query.filter_by(slug=slug).first() if slug else None
             try:
-                branch = github_sync.default_branch(owner_gh, repo)
-                readme_text = github_sync.fetch_raw_file(owner_gh, repo, "README.md", branch)
-                roi_text = github_sync.fetch_raw_file(owner_gh, repo, "ROI.md", branch)
-                summary_text = github_sync.fetch_raw_file(owner_gh, repo, "summary/SUMMARY.md", branch)
+                automation, warnings = sync_automation_from_github(
+                    existing, repo_url, int(request.form["owner_id"]),
+                    request.form.get("status") or "", request.form.getlist("departments"), slug=slug)
+            except ValueError as e:
+                flash(str(e))
+                return redirect(url_for("automation_import_github"))
             except Exception:
                 flash("Не вдалося звернутися до GitHub — перевір посилання і чи репозиторій публічний "
                       "(або що GITHUB_TOKEN в .env дійсний, якщо приватний).")
                 return redirect(url_for("automation_import_github"))
 
-            title, one_liner = github_sync.parse_readme(readme_text)
-            roi_sections = github_sync.parse_roi_md(roi_text)
-            summary = github_sync.summary_fields_from_sections(
-                github_sync.parse_markdown_sections(summary_text))
-
-            slug = request.form.get("slug", "").strip() or repo.lower()
-            automation = Automation.query.filter_by(slug=slug).first()
-            if automation is None:
-                automation = Automation(slug=slug, owner_id=int(request.form["owner_id"]),
-                                         name=summary["name"] or title or repo)
-                db.session.add(automation)
-            # summary/SUMMARY.md is the purpose-built contract - prefer it over
-            # README's prose whenever it's actually present.
-            automation.name = summary["name"] or title or automation.name
-            automation.one_liner = summary["one_liner"] or one_liner or automation.one_liner
-            automation.description = summary["description"] or automation.description
-            automation.repo_url = repo_url
-            automation.owner_id = int(request.form["owner_id"])
-
-            form_status = request.form.get("status") or ""
-            if form_status:
-                automation.status = Status(form_status)
-            elif summary["status"]:
-                try:
-                    automation.status = Status(summary["status"])
-                except ValueError:
-                    flash(f"Невідомий статус '{summary['status']}' у summary/SUMMARY.md — залишив попередній.")
-
-            selected_dept_ids = request.form.getlist("departments")
-            if selected_dept_ids:
-                automation.departments = Department.query.filter(Department.id.in_(selected_dept_ids)).all()
-            elif summary["departments"]:
-                depts = []
-                for name in summary["departments"]:
-                    dept = Department.query.filter_by(name=name).first()
-                    if not dept:
-                        dept = Department(name=name, hue=hue_for(name))
-                        db.session.add(dept)
-                    depts.append(dept)
-                automation.departments = depts
-
-            if summary["connections"]:
-                links = []
-                skipped = []
-                for c in summary["connections"]:
-                    target = Automation.query.filter_by(slug=c["slug"]).first()
-                    if target and target.id != automation.id:
-                        links.append(Connection(connected_automation_id=target.id,
-                                                 relationship_type=c["relationship_type"]))
-                    elif c["slug"]:
-                        skipped.append(c["slug"])
-                if links:
-                    automation.connections = links
-                if skipped:
-                    flash("Не знайдено (ще?) автоматизації для зв'язку: " + ", ".join(skipped))
-
-            if roi_sections:
-                fields = github_sync.roi_fields_from_sections(roi_sections)
-                if automation.roi is None:
-                    automation.roi = ROIEntry()
-                automation.roi.hypothesis = fields["hypothesis"] or automation.roi.hypothesis
-                automation.roi.metric_description = fields["metric_description"] or automation.roi.metric_description
-                automation.roi.confidence = fields["confidence"]
-                automation.roi.measured_value = fields["measured_value"] or automation.roi.measured_value
-
             db.session.commit()
-            flash(f"Синхронізовано з {repo_url}." + ("" if roi_text else " (ROI.md у репозиторії не знайдено.)"))
+            flash(f"Синхронізовано з {repo_url}." + (" " + " ".join(warnings) if warnings else ""))
             return redirect(url_for("automation_detail", slug=automation.slug))
 
         return render_template("automation_import.html", users=users, departments=departments, statuses=Status)
+
+    @app.route("/automations/<slug>/resync", methods=["POST"])
+    @login_required
+    @admin_required
+    def automation_resync(slug):
+        """The per-automation 'Оновити з GitHub' button - re-fetches from the
+        repo_url already on file, no form to refill."""
+        automation = Automation.query.filter_by(slug=slug).first_or_404()
+        if not automation.repo_url:
+            flash("У цієї автоматизації не вказано посилання на репозиторій.")
+            return redirect(url_for("automation_detail", slug=slug))
+        try:
+            automation, warnings = sync_automation_from_github(
+                automation, automation.repo_url, automation.owner_id, "", [])
+        except Exception:
+            flash("Не вдалося звернутися до GitHub — перевір, чи репозиторій усе ще доступний.")
+            return redirect(url_for("automation_detail", slug=slug))
+
+        db.session.commit()
+        flash("Оновлено з GitHub." + (" " + " ".join(warnings) if warnings else ""))
+        return redirect(url_for("automation_detail", slug=automation.slug))
 
     @app.route("/automations/<slug>")
     @login_required
