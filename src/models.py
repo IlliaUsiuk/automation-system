@@ -124,6 +124,10 @@ class Automation(db.Model):
     clickup_url = db.Column(db.String(500))
     created_at = db.Column(db.DateTime, default=_now)
     updated_at = db.Column(db.DateTime, default=_now, onupdate=_now)
+    # Separate from updated_at, which also changes on a manual edit - this is
+    # specifically "when did a GitHub pull last actually happen", so the page
+    # can say which kind of freshness it's showing.
+    last_synced_at = db.Column(db.DateTime)
 
     owner = db.relationship("User", back_populates="automations")
     departments = db.relationship("Department", secondary=automation_departments, backref="automations")

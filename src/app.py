@@ -22,6 +22,7 @@ from .models import (
     Skill,
     Status,
     User,
+    _now,
     hue_for,
 )
 
@@ -191,8 +192,11 @@ def register_routes(app):
         automation.description = summary["description"] or automation.description
         automation.repo_url = repo_url
         automation.owner_id = owner_id
+        automation.last_synced_at = _now()
 
         warnings = []
+        if not summary_text:
+            warnings.append("summary/SUMMARY.md не знайдено — дані неповні (взято тільки з README.md/ROI.md).")
         if form_status:
             automation.status = Status(form_status)
         elif summary["status"]:
@@ -312,6 +316,59 @@ def register_routes(app):
     def automation_detail(slug):
         automation = Automation.query.filter_by(slug=slug).first_or_404()
         return render_template("automation_detail.html", automation=automation)
+
+    @app.route("/departments")
+    @login_required
+    @admin_required
+    def departments_list():
+        departments = Department.query.order_by(Department.name).all()
+        return render_template("departments.html", departments=departments)
+
+    @app.route("/departments/<int:dept_id>/rename", methods=["POST"])
+    @login_required
+    @admin_required
+    def department_rename(dept_id):
+        dept = Department.query.get_or_404(dept_id)
+        new_name = request.form.get("name", "").strip()
+        if not new_name:
+            flash("Назва відділу не може бути порожньою.")
+        elif Department.query.filter(Department.name == new_name, Department.id != dept_id).first():
+            flash(f"Відділ з назвою «{new_name}» вже існує — злий їх через об'єднання нижче, а не перейменування.")
+        else:
+            dept.name = new_name
+            db.session.commit()
+        return redirect(url_for("departments_list"))
+
+    @app.route("/departments/merge", methods=["POST"])
+    @login_required
+    @admin_required
+    def department_merge():
+        from_dept = Department.query.get_or_404(int(request.form["from_id"]))
+        into_dept = Department.query.get_or_404(int(request.form["into_id"]))
+        if from_dept.id == into_dept.id:
+            flash("Неможливо об'єднати відділ сам із собою.")
+            return redirect(url_for("departments_list"))
+        for automation in list(from_dept.automations):
+            if into_dept not in automation.departments:
+                automation.departments.append(into_dept)
+            automation.departments.remove(from_dept)
+        db.session.delete(from_dept)
+        db.session.commit()
+        flash(f"«{from_dept.name}» об'єднано з «{into_dept.name}».")
+        return redirect(url_for("departments_list"))
+
+    @app.route("/departments/<int:dept_id>/delete", methods=["POST"])
+    @login_required
+    @admin_required
+    def department_delete(dept_id):
+        dept = Department.query.get_or_404(dept_id)
+        if dept.automations:
+            flash(f"«{dept.name}» використовується у {len(dept.automations)} автоматизаціях — "
+                  f"спочатку об'єднай з іншим відділом, потім видаляй.")
+        else:
+            db.session.delete(dept)
+            db.session.commit()
+        return redirect(url_for("departments_list"))
 
     @app.route("/automators/<int:user_id>")
     @login_required

@@ -35,6 +35,14 @@
           </svg>
           Бібліотека скіллів
         </a>
+        {% if current_user.is_admin %}
+        <a href="{{ url_for('departments_list') }}" class="{{ 'active' if active_nav == 'departments' }}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="3.2"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/>
+          </svg>
+          Відділи
+        </a>
+        {% endif %}
       </nav>
       <div class="sidebar-footer">
         <div class="sidebar-user">

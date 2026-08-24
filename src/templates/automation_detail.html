@@ -188,7 +188,16 @@
         <span style="font-size:13px; font-weight:500;">{{ automation.status.label }}</span>
       </div>
       <div style="font-size:12px; color:var(--text-muted); margin-top:8px; line-height:1.5;">
-        Оновлено {{ automation.updated_at.strftime("%Y-%m-%d") }}.
+        Востаннє редаговано вручну: {{ automation.updated_at.strftime("%Y-%m-%d") }}.<br>
+        {% if automation.repo_url %}
+          {% if automation.last_synced_at %}
+            Синхронізовано з GitHub: {{ automation.last_synced_at.strftime("%Y-%m-%d %H:%M") }}.
+          {% else %}
+            Репозиторій вказано, але синхронізація ще жодного разу не запускалась.
+          {% endif %}
+        {% else %}
+          Не підключено до GitHub.
+        {% endif %}
       </div>
     </div>
   </div>

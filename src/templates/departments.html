@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% set active_nav = 'departments' %}
+{% block title %}Відділи{% endblock %}
+{% block content %}
+<div class="page-title sora">Відділи</div>
+<div class="page-subtitle" style="margin-bottom: 1.2rem;">
+  Створюються самі при першій синхронізації чи додаванні автоматизації. Тут можна перейменувати
+  або об'єднати дублі (якщо хтось опечатався в назві).
+</div>
+
+<table class="table" style="margin-bottom: 2rem;">
+  <thead><tr><th>Колір</th><th>Назва</th><th>Автоматизацій</th><th>Перейменувати</th><th></th></tr></thead>
+  <tbody>
+    {% for d in departments %}
+    <tr>
+      <td><span class="tag" style="{{ d.pill_style }}">&nbsp;&nbsp;&nbsp;</span></td>
+      <td>{{ d.name }}</td>
+      <td>{{ d.automations|length }}</td>
+      <td>
+        <form method="post" action="{{ url_for('department_rename', dept_id=d.id) }}" style="display:flex; gap:6px; margin:0;">
+          <input type="text" name="name" value="{{ d.name }}" style="padding:.3rem .5rem; border:1px solid var(--border); border-radius:6px; font-size:.85rem;">
+          <button type="submit" class="btn" style="padding:.3rem .7rem; font-size:.8rem;">Зберегти</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="{{ url_for('department_delete', dept_id=d.id) }}" style="margin:0;"
+              onsubmit="return confirm('Видалити «{{ d.name }}»?');">
+          <button type="submit" class="btn" style="padding:.3rem .7rem; font-size:.8rem;">Видалити</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="panel" style="max-width: 32rem;">
+  <div class="panel-title sora">Об'єднати дублі</div>
+  <form method="post" action="{{ url_for('department_merge') }}" class="form">
+    <label>Взяти відділ
+      <select name="from_id" required>
+        {% for d in departments %}<option value="{{ d.id }}">{{ d.name }} ({{ d.automations|length }})</option>{% endfor %}
+      </select>
+    </label>
+    <label>…і перенести всі його автоматизації у
+      <select name="into_id" required>
+        {% for d in departments %}<option value="{{ d.id }}">{{ d.name }} ({{ d.automations|length }})</option>{% endfor %}
+      </select>
+    </label>
+    <button type="submit" class="btn btn-primary" onclick="return confirm('Перший відділ буде видалено, всі його автоматизації перейдуть у другий. Продовжити?');">Об'єднати</button>
+  </form>
+</div>
+{% endblock %}
