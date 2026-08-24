@@ -157,6 +157,7 @@ def register_routes(app):
                 branch = github_sync.default_branch(owner_gh, repo)
                 readme_text = github_sync.fetch_raw_file(owner_gh, repo, "README.md", branch)
                 roi_text = github_sync.fetch_raw_file(owner_gh, repo, "ROI.md", branch)
+                summary_text = github_sync.fetch_raw_file(owner_gh, repo, "summary/SUMMARY.md", branch)
             except Exception:
                 flash("Не вдалося звернутися до GitHub — перевір посилання і чи репозиторій публічний "
                       "(або що GITHUB_TOKEN в .env дійсний, якщо приватний).")
@@ -164,19 +165,59 @@ def register_routes(app):
 
             title, one_liner = github_sync.parse_readme(readme_text)
             roi_sections = github_sync.parse_roi_md(roi_text)
+            summary = github_sync.summary_fields_from_sections(
+                github_sync.parse_markdown_sections(summary_text))
 
             slug = request.form.get("slug", "").strip() or repo.lower()
             automation = Automation.query.filter_by(slug=slug).first()
             if automation is None:
-                automation = Automation(slug=slug, owner_id=int(request.form["owner_id"]), name=title or repo)
+                automation = Automation(slug=slug, owner_id=int(request.form["owner_id"]),
+                                         name=summary["name"] or title or repo)
                 db.session.add(automation)
-            automation.name = title or automation.name
-            automation.one_liner = one_liner or automation.one_liner
-            automation.status = Status(request.form["status"])
+            # summary/SUMMARY.md is the purpose-built contract - prefer it over
+            # README's prose whenever it's actually present.
+            automation.name = summary["name"] or title or automation.name
+            automation.one_liner = summary["one_liner"] or one_liner or automation.one_liner
+            automation.description = summary["description"] or automation.description
             automation.repo_url = repo_url
             automation.owner_id = int(request.form["owner_id"])
+
+            form_status = request.form.get("status") or ""
+            if form_status:
+                automation.status = Status(form_status)
+            elif summary["status"]:
+                try:
+                    automation.status = Status(summary["status"])
+                except ValueError:
+                    flash(f"Невідомий статус '{summary['status']}' у summary/SUMMARY.md — залишив попередній.")
+
             selected_dept_ids = request.form.getlist("departments")
-            automation.departments = Department.query.filter(Department.id.in_(selected_dept_ids)).all()
+            if selected_dept_ids:
+                automation.departments = Department.query.filter(Department.id.in_(selected_dept_ids)).all()
+            elif summary["departments"]:
+                depts = []
+                for name in summary["departments"]:
+                    dept = Department.query.filter_by(name=name).first()
+                    if not dept:
+                        dept = Department(name=name, hue=hue_for(name))
+                        db.session.add(dept)
+                    depts.append(dept)
+                automation.departments = depts
+
+            if summary["connections"]:
+                links = []
+                skipped = []
+                for c in summary["connections"]:
+                    target = Automation.query.filter_by(slug=c["slug"]).first()
+                    if target and target.id != automation.id:
+                        links.append(Connection(connected_automation_id=target.id,
+                                                 relationship_type=c["relationship_type"]))
+                    elif c["slug"]:
+                        skipped.append(c["slug"])
+                if links:
+                    automation.connections = links
+                if skipped:
+                    flash("Не знайдено (ще?) автоматизації для зв'язку: " + ", ".join(skipped))
 
             if roi_sections:
                 fields = github_sync.roi_fields_from_sections(roi_sections)

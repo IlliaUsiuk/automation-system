@@ -18,12 +18,13 @@
       {% for u in users %}<option value="{{ u.id }}" {% if u.id == current_user.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}
     </select>
   </label>
-  <label>Статус
+  <label>Статус <span class="page-subtitle" style="margin:0;">(порожньо — взяти зі summary/SUMMARY.md, якщо він є)</span>
     <select name="status">
+      <option value="">— визначити із SUMMARY.md —</option>
       {% for s in statuses %}<option value="{{ s.value }}">{{ s.label }}</option>{% endfor %}
     </select>
   </label>
-  <label>Відділ(и) <span class="page-subtitle" style="margin:0;">(README/ROI.md цього не містять — вкажи сам)</span>
+  <label>Відділ(и) <span class="page-subtitle" style="margin:0;">(порожньо — взяти зі summary/SUMMARY.md, інакше вкажи сам)</span>
     <select name="departments" multiple size="4">
       {% for d in departments %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
     </select>

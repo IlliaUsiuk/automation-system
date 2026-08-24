@@ -31,6 +31,13 @@
 
 <div class="detail-body">
   <div class="detail-main">
+    {% if automation.description %}
+    <div class="panel">
+      <div class="panel-title sora">Що це робить</div>
+      <p style="font-size:13px; line-height:1.6; margin:0; white-space:pre-line;">{{ automation.description }}</p>
+    </div>
+    {% endif %}
+
     {% if automation.skills %}
     <div class="panel">
       <div class="panel-title sora">Скіли, що використовуються</div>

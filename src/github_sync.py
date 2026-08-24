@@ -68,18 +68,18 @@ def parse_readme(text):
     return title, one_liner
 
 
-_ROI_HEADER_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
+_HEADER_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 _HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 
 
-def parse_roi_md(text):
-    """Splits ROI.md (see stage-0-supplax's templates/ROI.md) into its
-    section headers -> body text, with the template's own guidance comments
-    stripped out so an unfilled section reads as empty, not as its own
-    instructions."""
+def parse_markdown_sections(text):
+    """Splits any '## Header' -> body markdown file into a dict, with HTML
+    guidance comments stripped so an unfilled section reads as empty rather
+    than as its own template instructions. Shared by ROI.md and
+    summary/SUMMARY.md - both use the same '## Heading' convention."""
     if not text:
         return {}
-    headers = list(_ROI_HEADER_RE.finditer(text))
+    headers = list(_HEADER_RE.finditer(text))
     sections = {}
     for i, m in enumerate(headers):
         start = m.end()
@@ -87,6 +87,45 @@ def parse_roi_md(text):
         body = _HTML_COMMENT_RE.sub("", text[start:end]).strip()
         sections[m.group(1).strip()] = body
     return sections
+
+
+# Back-compat alias - ROI.md parsing specifically.
+parse_roi_md = parse_markdown_sections
+
+
+_BULLET_RE = re.compile(r"^\s*[-*]\s+(.+?)\s*$", re.MULTILINE)
+
+
+def _bullet_items(body):
+    """'- Sales' / '- other-slug: shares a webhook' style lines -> list of
+    raw strings (one per bullet), used for summary/SUMMARY.md's Departments
+    and Connections sections."""
+    return [m.group(1).strip() for m in _BULLET_RE.finditer(body or "")]
+
+
+def summary_fields_from_sections(sections):
+    """Maps summary/SUMMARY.md's sections to Automation's columns. This file
+    exists specifically because README.md's prose is unreliable to scrape for
+    an actual functional description - SUMMARY.md is a purpose-built contract
+    a skill (not a human writing prose for other humans) maintains, so every
+    field here is a fixed header, not best-effort guesswork."""
+    name = sections.get("Name") or None
+    one_liner = sections.get("One-liner") or None
+    description = sections.get("What it does") or None
+    departments = _bullet_items(sections.get("Departments", ""))
+    status_raw = (sections.get("Status") or "").strip().lower()
+    connections = []
+    for item in _bullet_items(sections.get("Connections", "")):
+        slug, _, rel = item.partition(":")
+        connections.append({"slug": slug.strip(), "relationship_type": rel.strip() or None})
+    return {
+        "name": name,
+        "one_liner": one_liner,
+        "description": description,
+        "departments": departments,
+        "status": status_raw or None,
+        "connections": connections,
+    }
 
 
 def roi_fields_from_sections(sections):

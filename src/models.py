@@ -116,7 +116,8 @@ class Automation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     slug = db.Column(db.String(120), unique=True, nullable=False)
     name = db.Column(db.String(255), nullable=False)
-    one_liner = db.Column(db.String(500))
+    one_liner = db.Column(db.String(500))  # short teaser, shown on the card in the registry grid
+    description = db.Column(db.Text)  # full "what it does / goal" writeup, shown on the detail page
     status = db.Column(db.Enum(Status), nullable=False, default=Status.IDEA)
     owner_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     repo_url = db.Column(db.String(500))
