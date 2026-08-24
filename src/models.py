@@ -132,11 +132,15 @@ class Automation(db.Model):
     comparison = db.relationship("Comparison", back_populates="automation", uselist=False, cascade="all, delete-orphan")
     review_log = db.relationship(
         "ReviewLogEntry", back_populates="automation", cascade="all, delete-orphan",
-        order_by="ReviewLogEntry.created_at.desc()",
+        order_by="ReviewLogEntry.order_index.desc()",
     )
     connections = db.relationship(
         "Connection", foreign_keys="Connection.automation_id",
         back_populates="automation", cascade="all, delete-orphan",
+    )
+    pages = db.relationship(
+        "AutomationPage", back_populates="automation", cascade="all, delete-orphan",
+        order_by="AutomationPage.order_index",
     )
 
 
@@ -186,16 +190,35 @@ class Connection(db.Model):
 
 
 class ReviewLogEntry(db.Model):
-    """Mirrors stage-0-supplax's backlog/BACKLOG.md concept, in the DB."""
+    """Mirrors stage-0-supplax's backlog/BACKLOG.md entries, in the DB -
+    parsed straight from that file by github_sync, not hand-entered."""
     id = db.Column(db.Integer, primary_key=True)
     automation_id = db.Column(db.Integer, db.ForeignKey("automation.id"), nullable=False)
     round_label = db.Column(db.String(100))
     found = db.Column(db.Text)
     changed = db.Column(db.Text)
     rejected = db.Column(db.Text)
+    # BACKLOG.md entries have no reliable timestamp to sort by (the <label>
+    # is free-form per backlog-format.md) - this is just "file order",
+    # reset and reassigned on every sync so newest-appended sorts first.
+    order_index = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, default=_now)
 
     automation = db.relationship("Automation", back_populates="review_log")
+
+
+class AutomationPage(db.Model):
+    """One entry per screen/page of the automation, from summary/SUMMARY.md's
+    '## Pages' section - see stage-0-supplax's templates/layout/summary-SUMMARY.md.
+    Plain-language only: this is what a non-technical viewer reads to
+    understand what they'd actually click on and why."""
+    id = db.Column(db.Integer, primary_key=True)
+    automation_id = db.Column(db.Integer, db.ForeignKey("automation.id"), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    order_index = db.Column(db.Integer, nullable=False, default=0)
+
+    automation = db.relationship("Automation", back_populates="pages")
 
 
 class Skill(db.Model):

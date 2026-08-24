@@ -147,7 +147,64 @@ def summary_fields_from_sections(sections):
         "departments": departments,
         "status": status_raw or None,
         "connections": connections,
+        "pages": parse_pages_section(sections.get("Pages", "")),
     }
+
+
+_SUBHEADER_RE = re.compile(r"^###\s+(.+?)\s*$", re.MULTILINE)
+
+
+def parse_pages_section(body):
+    """summary/SUMMARY.md's '## Pages' section holds one '### Page Name'
+    sub-header per screen, body = its plain-language description. Returns an
+    ordered list of {name, description} - order matters, it's shown in the
+    same order on the dashboard."""
+    if not body:
+        return []
+    headers = list(_SUBHEADER_RE.finditer(body))
+    pages = []
+    for i, m in enumerate(headers):
+        start = m.end()
+        end = headers[i + 1].start() if i + 1 < len(headers) else len(body)
+        desc = _HTML_COMMENT_RE.sub("", body[start:end]).strip()
+        pages.append({"name": m.group(1).strip(), "description": desc})
+    return pages
+
+
+_BACKLOG_FIELD_RE = re.compile(r"^(Scope|Found|Changed|Rejected):\s*(.*)$")
+
+
+def parse_backlog_md(text, limit=5):
+    """Parses backlog/BACKLOG.md entries - each '## ...' heading is one
+    round's entry (see stage-0-supplax's references/backlog-format.md), body
+    holds Scope/Found/Changed/Rejected lines. Deliberately doesn't assume a
+    fixed grammar for the heading text itself ("Round N of M — mode" in the
+    spec, but real output has varied) - whatever's after '## ' is the label
+    verbatim. Returns up to the last `limit` entries, in file order (oldest
+    first) - callers show them newest-first themselves."""
+    if not text:
+        return []
+    sections = parse_markdown_sections(text)
+    entries = []
+    for label, body in sections.items():
+        fields = {"Scope": "", "Found": "", "Changed": "", "Rejected": ""}
+        current = None
+        for line in body.splitlines():
+            field_match = _BACKLOG_FIELD_RE.match(line.strip())
+            if field_match:
+                current = field_match.group(1)
+                fields[current] = field_match.group(2).strip()
+            elif current and line.strip():
+                fields[current] = (fields[current] + " " + line.strip()).strip()
+        if not any(fields.values()):
+            continue  # not an entry - e.g. a stray '## Something Else' heading
+        entries.append({
+            "round_label": label,
+            "found": fields["Found"] or fields["Scope"],
+            "changed": fields["Changed"] or None,
+            "rejected": fields["Rejected"] or None,
+        })
+    return entries[-limit:] if limit else entries
 
 
 def roi_fields_from_sections(sections):

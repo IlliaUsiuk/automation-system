@@ -11,11 +11,13 @@ from . import github_sync
 from .extensions import db, login_manager
 from .models import (
     Automation,
+    AutomationPage,
     Comparison,
     Connection,
     Department,
     FeatureRow,
     ROIEntry,
+    ReviewLogEntry,
     Role,
     Skill,
     Status,
@@ -154,6 +156,7 @@ def register_routes(app):
         readme_text = github_sync.fetch_raw_file(owner_gh, repo, "README.md", branch)
         roi_text = github_sync.fetch_raw_file(owner_gh, repo, "ROI.md", branch)
         summary_text = github_sync.fetch_raw_file(owner_gh, repo, "summary/SUMMARY.md", branch)
+        backlog_text = github_sync.fetch_raw_file(owner_gh, repo, "backlog/BACKLOG.md", branch)
 
         title, one_liner = github_sync.parse_readme(readme_text)
         roi_sections = github_sync.parse_roi_md(roi_text)
@@ -218,6 +221,20 @@ def register_routes(app):
             automation.roi.measured_value = fields["measured_value"] or automation.roi.measured_value
         elif not roi_text:
             warnings.append("ROI.md у репозиторії не знайдено.")
+
+        if summary["pages"]:
+            automation.pages = [
+                AutomationPage(name=p["name"], description=p["description"], order_index=i)
+                for i, p in enumerate(summary["pages"])
+            ]
+
+        backlog_entries = github_sync.parse_backlog_md(backlog_text, limit=5)
+        if backlog_entries:
+            automation.review_log = [
+                ReviewLogEntry(round_label=e["round_label"], found=e["found"],
+                                changed=e["changed"], rejected=e["rejected"], order_index=i)
+                for i, e in enumerate(backlog_entries)
+            ]
 
         return automation, warnings
 
