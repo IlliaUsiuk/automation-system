@@ -110,35 +110,52 @@ def register_routes(app):
             search=search,
         )
 
+    def apply_manual_form(automation, form):
+        automation.name = form["name"].strip()
+        automation.one_liner = form.get("one_liner", "").strip()
+        automation.status = Status(form["status"])
+        automation.owner_id = int(form.get("owner_id") or automation.owner_id)
+        automation.repo_url = form.get("repo_url", "").strip() or None
+        automation.clickup_url = form.get("clickup_url", "").strip() or None
+        automation.departments = Department.query.filter(
+            Department.id.in_(form.getlist("departments"))).all()
+        automation.skills = Skill.query.filter(Skill.id.in_(form.getlist("skills"))).all()
+        if automation.roi is None:
+            automation.roi = ROIEntry()
+        automation.roi.hypothesis = form.get("hypothesis", "").strip()
+        automation.roi.metric_description = form.get("metric_description", "").strip()
+        automation.roi.confidence = form.get("confidence", "estimated")
+
     @app.route("/automations/new", methods=["GET", "POST"])
     @login_required
     @admin_required
     def automation_new():
+        users = User.query.order_by(User.name).all()
         departments = Department.query.order_by(Department.name).all()
         skills = Skill.query.order_by(Skill.name).all()
         if request.method == "POST":
-            automation = Automation(
-                slug=request.form["slug"].strip(),
-                name=request.form["name"].strip(),
-                one_liner=request.form.get("one_liner", "").strip(),
-                status=Status(request.form["status"]),
-                owner_id=current_user.id,
-                repo_url=request.form.get("repo_url", "").strip() or None,
-                clickup_url=request.form.get("clickup_url", "").strip() or None,
-            )
-            selected_dept_ids = request.form.getlist("departments")
-            automation.departments = Department.query.filter(Department.id.in_(selected_dept_ids)).all()
-            selected_skill_ids = request.form.getlist("skills")
-            automation.skills = Skill.query.filter(Skill.id.in_(selected_skill_ids)).all()
-            automation.roi = ROIEntry(
-                hypothesis=request.form.get("hypothesis", "").strip(),
-                metric_description=request.form.get("metric_description", "").strip(),
-                confidence=request.form.get("confidence", "estimated"),
-            )
+            automation = Automation(slug=request.form["slug"].strip(), owner_id=current_user.id)
+            apply_manual_form(automation, request.form)
             db.session.add(automation)
             db.session.commit()
             return redirect(url_for("automation_detail", slug=automation.slug))
-        return render_template("automation_form.html", departments=departments, skills=skills, statuses=Status, automation=None)
+        return render_template("automation_form.html", departments=departments, skills=skills,
+                                users=users, statuses=Status, automation=None)
+
+    @app.route("/automations/<slug>/edit", methods=["GET", "POST"])
+    @login_required
+    @admin_required
+    def automation_edit(slug):
+        automation = Automation.query.filter_by(slug=slug).first_or_404()
+        users = User.query.order_by(User.name).all()
+        departments = Department.query.order_by(Department.name).all()
+        skills = Skill.query.order_by(Skill.name).all()
+        if request.method == "POST":
+            apply_manual_form(automation, request.form)
+            db.session.commit()
+            return redirect(url_for("automation_detail", slug=automation.slug))
+        return render_template("automation_form.html", departments=departments, skills=skills,
+                                users=users, statuses=Status, automation=automation)
 
     def sync_automation_from_github(automation, repo_url, owner_id, form_status, selected_dept_ids, slug=None):
         """Shared by the first-time import form and the per-automation

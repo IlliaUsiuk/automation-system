@@ -102,6 +102,14 @@
         Задача в ClickUp
       </a>
       {% endif %}
+      {% if current_user.is_admin %}
+      <a class="btn" href="{{ url_for('automation_edit', slug=automation.slug) }}">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+        </svg>
+        Редагувати
+      </a>
+      {% endif %}
       {% if automation.repo_url and current_user.is_admin %}
       <form method="post" action="{{ url_for('automation_resync', slug=automation.slug) }}" style="margin:0;">
         <button type="submit" class="btn">
