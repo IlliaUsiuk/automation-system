@@ -281,7 +281,10 @@ def register_routes(app):
             flash(f"Синхронізовано з {repo_url}." + (" " + " ".join(warnings) if warnings else ""))
             return redirect(url_for("automation_detail", slug=automation.slug))
 
-        return render_template("automation_import.html", users=users, departments=departments, statuses=Status)
+        prefill_slug = request.args.get("slug", "")
+        prefill_owner_id = request.args.get("owner_id", type=int)
+        return render_template("automation_import.html", users=users, departments=departments, statuses=Status,
+                                prefill_slug=prefill_slug, prefill_owner_id=prefill_owner_id)
 
     @app.route("/automations/<slug>/resync", methods=["POST"])
     @login_required
