@@ -200,6 +200,21 @@
         {% endif %}
       </div>
     </div>
+
+    {% if automation.current_stage_override or automation.last_commit_message %}
+    <div class="panel">
+      <div class="panel-title sora">Зараз</div>
+      {% if automation.current_stage_override %}
+      <div style="font-size:13px;">{{ automation.current_stage_override }}</div>
+      <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Вказано вручну в summary/SUMMARY.md</div>
+      {% else %}
+      <div style="font-size:13px; font-family: 'IBM Plex Mono', monospace;">{{ automation.last_commit_message }}</div>
+      <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+        Останній комміт{% if automation.last_commit_at %} · {{ automation.last_commit_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

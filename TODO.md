@@ -1,10 +1,10 @@
 # TODO
 
-- [ ] Real-time build stage on the automation card — the current `Status` enum
-  (idea / in_development / ready_not_launched / live / archived) is too coarse to
-  show what's actually happening right now while someone is building it. Need a
-  finer, live-updating "current stage" (e.g. writing code / testing / review /
-  deploying) that updates without a full GitHub re-sync. Open questions before
-  building: where does this signal come from (an agent pushing status updates? a
-  richer summary/SUMMARY.md field re-read on a timer? a webhook?), and does it
-  replace `Status` or sit alongside it as a more granular sub-field.
+- [x] "What's happening right now" on the automation card — shipped as a plain fact,
+  not a guessed stage: the dashboard shows the repo's last commit message + when it
+  happened (a commit's wording doesn't reliably map to lifecycle phase, so it isn't
+  interpreted into a narrative). `summary/SUMMARY.md`'s optional `## Current Stage`
+  overrides it for anything a commit can't say ("очікуємо погодження", "заблоковано").
+  Sits next to `Status`, doesn't replace it.
+- [ ] This still only updates on a manual "Оновити з GitHub" click, not actually live —
+  a webhook or scheduled poll would close that gap, not attempted yet.

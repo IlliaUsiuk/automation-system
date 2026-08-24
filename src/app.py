@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from functools import wraps
 from pathlib import Path
 
@@ -175,6 +176,7 @@ def register_routes(app):
         roi_text = github_sync.fetch_raw_file(owner_gh, repo, "ROI.md", branch)
         summary_text = github_sync.fetch_raw_file(owner_gh, repo, "summary/SUMMARY.md", branch)
         backlog_text = github_sync.fetch_raw_file(owner_gh, repo, "backlog/BACKLOG.md", branch)
+        latest_commit = github_sync.fetch_latest_commit(owner_gh, repo, branch)
 
         title, one_liner = github_sync.parse_readme(readme_text)
         roi_sections = github_sync.parse_roi_md(roi_text)
@@ -193,6 +195,11 @@ def register_routes(app):
         automation.repo_url = repo_url
         automation.owner_id = owner_id
         automation.last_synced_at = _now()
+        automation.current_stage_override = summary["current_stage_override"]
+        if latest_commit:
+            automation.last_commit_message = latest_commit["message"]
+            if latest_commit["date"]:
+                automation.last_commit_at = datetime.fromisoformat(latest_commit["date"].replace("Z", "+00:00"))
 
         warnings = []
         if not summary_text:
