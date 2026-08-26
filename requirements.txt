@@ -2,3 +2,4 @@ Flask==3.1.2
 Flask-SQLAlchemy==3.1.1
 Flask-Login==0.6.3
 python-dotenv==1.1.1
+lidar-sdk @ git+https://github.com/giga-brdg/lidar-sdk.git@v0.2.0
