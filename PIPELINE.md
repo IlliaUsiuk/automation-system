@@ -15,7 +15,8 @@ only, for both leadership transparency and employee visibility. Private/internal
 project. v1 optimizes for long-term maintainability over shipping fast. "Done" for v1
 is the registry + ROI cards described in `ROADMAP.md`'s "Now" section — Telegram
 alerts and token-usage tracking are explicitly deferred (see `ROADMAP.md` Next/Later).
-Value hypothesis and measurement plan: see `ROI.md`. A detailed design pass (including
+Value hypothesis and measurement plan: see `dashboard/ROI.md` (full methodology in
+`docs/roi_explained.md`). A detailed design pass (including
 visual/artifact-style design for the ROI views, and a `PROMPTS.md` staged build plan)
 is planned as the next step after this Stage 0 bootstrap — not yet done. Visual
 direction the owner already named for that pass: "airy, clean, icon-driven,

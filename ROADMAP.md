@@ -15,5 +15,5 @@
 ## Later
 - Daily token-consumption tracking per automation.
 - ROI presented as a richer visual artifact (presentation/diagram-style view), design
-  TBD — see `ROI.md` and the note in `PIPELINE.md` §1 about the design pass planned
+  TBD — see `dashboard/ROI.md` and the note in `PIPELINE.md` §1 about the design pass planned
   after this bootstrap.

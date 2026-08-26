@@ -135,7 +135,7 @@ class Automation(db.Model):
     # shape was chosen over a guessed one.
     last_commit_message = db.Column(db.String(500))
     last_commit_at = db.Column(db.DateTime)
-    # Optional human override (summary/SUMMARY.md's '## Current Stage') for
+    # Optional human override (dashboard/SUMMARY.md's '## Current Stage') for
     # anything a commit can't say - "очікуємо погодження", "заблоковано
     # тікетом X". Takes priority over last_commit_message when present.
     current_stage_override = db.Column(db.String(500))
@@ -173,7 +173,7 @@ class ROIEntry(db.Model):
     measured_at = db.Column(db.DateTime)
     qualitative_notes = db.Column(db.Text)
     # Link to a published HTML slide-deck Artifact walking through this ROI
-    # entry - from ROI.md's '## Presentation' section (optional, most
+    # entry - from dashboard/ROI.md's '## Presentation' section (optional, most
     # automations won't have one). Opens in a new tab; not embedded, since
     # Artifacts are served from claude.ai and can't be iframed here.
     presentation_url = db.Column(db.String(500))
@@ -246,8 +246,8 @@ class AutomationTodoItem(db.Model):
 
 
 class AutomationPage(db.Model):
-    """One entry per screen/page of the automation, from summary/SUMMARY.md's
-    '## Pages' section - see stage-0-supplax's templates/layout/summary-SUMMARY.md.
+    """One entry per screen/page of the automation, from dashboard/SUMMARY.md's
+    '## Pages' section - see stage-0-supplax's templates/dashboard/SUMMARY.md.
     Plain-language only: this is what a non-technical viewer reads to
     understand what they'd actually click on and why."""
     id = db.Column(db.Integer, primary_key=True)

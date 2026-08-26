@@ -1,6 +1,10 @@
-"""Pull-based sync: given a GitHub repo URL, fetch README.md/ROI.md (the files
-stage-0-supplax actually generates with a known structure) and parse them into
-the fields automation_new/api_sync_automation already know how to fill.
+"""Pull-based sync: given a GitHub repo URL, fetch README.md/dashboard/ROI.md/
+dashboard/SUMMARY.md (the files stage-0-supplax actually generates with a
+known structure) and parse them into the fields automation_new/
+api_sync_automation already know how to fill. dashboard/ROI.md and
+dashboard/SUMMARY.md are a generated sync contract, not the automation's real
+ROI/functionality writeups (those live at docs/roi_explained.md and
+docs/functions.md instead) - see automation-portfolio-sync's SKILL.md.
 No dependency added - stdlib urllib, same approach already used for the
 ClickUp checks earlier in this project."""
 import json
@@ -58,7 +62,8 @@ def default_branch(owner, repo):
 def fetch_raw_file(owner, repo, path, branch):
     """Returns the file's text content, or None if it doesn't exist (a repo
     bootstrapped by an older stage-0-supplax run, or one that isn't an
-    automation, may not have ROI.md - that's a real case, not an error)."""
+    automation, may not have dashboard/ROI.md - that's a real case, not an
+    error)."""
     url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
     req = urllib.request.Request(url, headers=_github_headers())
     try:
@@ -122,8 +127,8 @@ _HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 def parse_markdown_sections(text):
     """Splits any '## Header' -> body markdown file into a dict, with HTML
     guidance comments stripped so an unfilled section reads as empty rather
-    than as its own template instructions. Shared by ROI.md and
-    summary/SUMMARY.md - both use the same '## Heading' convention."""
+    than as its own template instructions. Shared by dashboard/ROI.md and
+    dashboard/SUMMARY.md - both use the same '## Heading' convention."""
     if not text:
         return {}
     headers = list(_HEADER_RE.finditer(text))
@@ -136,7 +141,7 @@ def parse_markdown_sections(text):
     return sections
 
 
-# Back-compat alias - ROI.md parsing specifically.
+# Back-compat alias - dashboard/ROI.md parsing specifically.
 parse_roi_md = parse_markdown_sections
 
 
@@ -145,17 +150,18 @@ _BULLET_RE = re.compile(r"^\s*[-*]\s+(.+?)\s*$", re.MULTILINE)
 
 def _bullet_items(body):
     """'- Sales' / '- other-slug: shares a webhook' style lines -> list of
-    raw strings (one per bullet), used for summary/SUMMARY.md's Departments
+    raw strings (one per bullet), used for dashboard/SUMMARY.md's Departments
     and Connections sections."""
     return [m.group(1).strip() for m in _BULLET_RE.finditer(body or "")]
 
 
 def summary_fields_from_sections(sections):
-    """Maps summary/SUMMARY.md's sections to Automation's columns. This file
+    """Maps dashboard/SUMMARY.md's sections to Automation's columns. This file
     exists specifically because README.md's prose is unreliable to scrape for
-    an actual functional description - SUMMARY.md is a purpose-built contract
-    a skill (not a human writing prose for other humans) maintains, so every
-    field here is a fixed header, not best-effort guesswork."""
+    an actual functional description - SUMMARY.md is a purpose-built,
+    generated contract (automation-portfolio-sync regenerates it from the
+    project's real docs/functions.md and docs/roi_explained.md each sync), so
+    every field here is a fixed header, not best-effort guesswork."""
     name = sections.get("Name") or None
     one_liner = sections.get("One-liner") or None
     description = sections.get("What it does") or None
@@ -181,7 +187,7 @@ _SUBHEADER_RE = re.compile(r"^###\s+(.+?)\s*$", re.MULTILINE)
 
 
 def parse_pages_section(body):
-    """summary/SUMMARY.md's '## Pages' section holds one '### Page Name'
+    """dashboard/SUMMARY.md's '## Pages' section holds one '### Page Name'
     sub-header per screen, body = its plain-language description. Returns an
     ordered list of {name, description} - order matters, it's shown in the
     same order on the dashboard."""
@@ -239,8 +245,9 @@ _TODO_ITEM_RE = re.compile(r"^\s*-\s*\[([ xX])\]\s+(.+?)\s*$", re.MULTILINE)
 def parse_todo_md(text):
     """Parses TODO.md's plain '- [ ]'/'- [x]' checklist lines - the file
     stage-0-supplax already creates per project (empty at bootstrap, filled
-    from real work as it happens). No fixed sections here, unlike ROI.md/
-    SUMMARY.md - it's just a flat list, in file order. Returns a list of
+    from real work as it happens). No fixed sections here, unlike
+    dashboard/ROI.md and dashboard/SUMMARY.md - it's just a flat list, in
+    file order. Returns a list of
     {text, done}, in the order they appear in the file."""
     if not text:
         return []
@@ -249,9 +256,9 @@ def parse_todo_md(text):
 
 
 def roi_fields_from_sections(sections):
-    """Maps ROI.md's section names to ROIEntry's columns. Confidence is read
+    """Maps dashboard/ROI.md's section names to ROIEntry's columns. Confidence is read
     from the template's own "Estimated" / "Measured (as of ...)" convention -
-    see stage-0-supplax's templates/ROI.md."""
+    see stage-0-supplax's templates/dashboard/ROI.md."""
     confidence_text = sections.get("Confidence", "")
     confidence = "measured" if confidence_text.lower().startswith("measured") else "estimated"
     measured_value = None

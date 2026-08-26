@@ -1,5 +1,8 @@
 # ROI / Value
 
+<!-- Generated from docs/roi_explained.md - edit that file and regenerate this
+     one via automation-portfolio-sync, don't hand-edit this prose. -->
+
 ## Hypothesis
 Supplax runs a growing number of internal automations, but there's no single place to
 see what they do, who owns them, or whether they're actually paying off. This
@@ -11,11 +14,8 @@ what's running, who's responsible, and what breaks.
 ## How We'll Measure It
 Per-automation ROI card showing time and/or money saved vs. the manual process it
 replaced — sourced from whatever baseline the automation's owner records at
-registration time (e.g. "this used to take 3h/week manually"). This is a measurement
-plan, not real data yet: the actual capture mechanism (a field on registration, a
-periodic owner check-in, or something else) is a design-stage decision, not settled
-here. Later phases add token cost per automation (daily) as a second, ongoing cost
-side of the same ROI picture.
+registration time. See `docs/roi_explained.md` for the full methodology, assumptions,
+and caveats behind this number.
 
 ## Confidence
 Estimated — no real data yet.

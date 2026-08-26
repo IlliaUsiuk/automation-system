@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-title sora">Синхронізувати з GitHub</div>
 <div class="page-subtitle" style="margin-bottom: 1rem;">
-  Візьме README.md і ROI.md з репозиторію (те, що вже написав stage-0-supplax) і заповнить картку сам.
+  Візьме README.md і dashboard/ROI.md з репозиторію (те, що вже написав stage-0-supplax) і заповнить картку сам.
 </div>
 <form method="post" class="form">
   <label>Посилання на репозиторій
@@ -25,13 +25,13 @@
       {% endfor %}
     </select>
   </label>
-  <label>Статус <span class="page-subtitle" style="margin:0;">(порожньо — взяти зі summary/SUMMARY.md, якщо він є)</span>
+  <label>Статус <span class="page-subtitle" style="margin:0;">(порожньо — взяти з dashboard/SUMMARY.md, якщо він є)</span>
     <select name="status">
       <option value="">— визначити із SUMMARY.md —</option>
       {% for s in statuses %}<option value="{{ s.value }}">{{ s.label }}</option>{% endfor %}
     </select>
   </label>
-  <label>Відділ(и) <span class="page-subtitle" style="margin:0;">(порожньо — взяти зі summary/SUMMARY.md, інакше вкажи сам)</span>
+  <label>Відділ(и) <span class="page-subtitle" style="margin:0;">(порожньо — взяти з dashboard/SUMMARY.md, інакше вкажи сам)</span>
     <select name="departments" multiple size="4">
       {% for d in departments %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
     </select>

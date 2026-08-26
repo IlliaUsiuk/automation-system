@@ -163,10 +163,15 @@ def register_routes(app):
 
     def sync_automation_from_github(automation, repo_url, owner_id, form_status, selected_dept_ids, slug=None):
         """Shared by the first-time import form and the per-automation
-        'Оновити з GitHub' button: fetch README.md/ROI.md/summary/SUMMARY.md
-        and apply them to `automation` (a new unsaved instance, or an
-        existing one being refreshed). Raises on a GitHub fetch failure -
-        callers turn that into a flash message."""
+        'Оновити з GitHub' button: fetch README.md/dashboard/ROI.md/
+        dashboard/SUMMARY.md and apply them to `automation` (a new unsaved
+        instance, or an existing one being refreshed). These two live in a
+        dedicated dashboard/ folder because they're a generated sync
+        contract, not hand-maintained project docs - the automation's repo
+        keeps its own real ROI/functionality writeups elsewhere (docs/
+        roi_explained.md, docs/functions.md) and regenerates these two from
+        them. Raises on a GitHub fetch failure - callers turn that into a
+        flash message."""
         parsed = github_sync.parse_repo_url(repo_url)
         if not parsed:
             raise ValueError("Не схоже на посилання на GitHub-репозиторій "
@@ -175,8 +180,8 @@ def register_routes(app):
 
         branch = github_sync.default_branch(owner_gh, repo)
         readme_text = github_sync.fetch_raw_file(owner_gh, repo, "README.md", branch)
-        roi_text = github_sync.fetch_raw_file(owner_gh, repo, "ROI.md", branch)
-        summary_text = github_sync.fetch_raw_file(owner_gh, repo, "summary/SUMMARY.md", branch)
+        roi_text = github_sync.fetch_raw_file(owner_gh, repo, "dashboard/ROI.md", branch)
+        summary_text = github_sync.fetch_raw_file(owner_gh, repo, "dashboard/SUMMARY.md", branch)
         backlog_text = github_sync.fetch_raw_file(owner_gh, repo, "backlog/BACKLOG.md", branch)
         todo_text = github_sync.fetch_raw_file(owner_gh, repo, "TODO.md", branch)
         latest_commit = github_sync.fetch_latest_commit(owner_gh, repo, branch)
@@ -190,7 +195,7 @@ def register_routes(app):
             automation = Automation(slug=slug or repo.lower(), owner_id=owner_id,
                                      name=summary["name"] or title or repo)
             db.session.add(automation)
-        # summary/SUMMARY.md is the purpose-built contract - prefer it over
+        # dashboard/SUMMARY.md is the purpose-built contract - prefer it over
         # README's prose whenever it's actually present.
         automation.name = summary["name"] or title or automation.name
         automation.one_liner = summary["one_liner"] or one_liner or automation.one_liner
@@ -206,14 +211,14 @@ def register_routes(app):
 
         warnings = []
         if not summary_text:
-            warnings.append("summary/SUMMARY.md не знайдено — дані неповні (взято тільки з README.md/ROI.md).")
+            warnings.append("dashboard/SUMMARY.md не знайдено — дані неповні (взято тільки з README.md/dashboard/ROI.md).")
         if form_status:
             automation.status = Status(form_status)
         elif summary["status"]:
             try:
                 automation.status = Status(summary["status"])
             except ValueError:
-                warnings.append(f"Невідомий статус '{summary['status']}' у summary/SUMMARY.md — залишив попередній.")
+                warnings.append(f"Невідомий статус '{summary['status']}' у dashboard/SUMMARY.md — залишив попередній.")
 
         if selected_dept_ids:
             automation.departments = Department.query.filter(Department.id.in_(selected_dept_ids)).all()
@@ -252,7 +257,7 @@ def register_routes(app):
             automation.roi.measured_value = fields["measured_value"] or automation.roi.measured_value
             automation.roi.presentation_url = fields["presentation_url"] or automation.roi.presentation_url
         elif not roi_text:
-            warnings.append("ROI.md у репозиторії не знайдено.")
+            warnings.append("dashboard/ROI.md у репозиторії не знайдено.")
 
         if summary["pages"]:
             automation.pages = [
