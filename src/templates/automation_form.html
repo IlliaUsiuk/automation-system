@@ -67,6 +67,9 @@
         <option value="measured" {% if automation and automation.roi and automation.roi.confidence == 'measured' %}selected{% endif %}>Measured</option>
       </select>
     </label>
+    <label>Посилання на презентацію (необов'язково)
+      <input type="url" name="presentation_url" value="{{ automation.roi.presentation_url if automation and automation.roi else '' }}">
+    </label>
   </fieldset>
   <button type="submit" class="btn btn-primary">Зберегти</button>
 </form>

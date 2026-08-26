@@ -260,9 +260,15 @@ def roi_fields_from_sections(sections):
             if line.strip():
                 measured_value = line.strip()
                 break
+    presentation_url = None
+    for line in sections.get("Presentation", "").splitlines():
+        if line.strip():
+            presentation_url = line.strip()
+            break
     return {
         "hypothesis": sections.get("Hypothesis") or None,
         "metric_description": sections.get("How We'll Measure It") or None,
         "confidence": confidence,
         "measured_value": measured_value,
+        "presentation_url": presentation_url,
     }

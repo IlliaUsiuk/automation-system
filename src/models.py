@@ -172,6 +172,11 @@ class ROIEntry(db.Model):
     measured_value = db.Column(db.String(255))
     measured_at = db.Column(db.DateTime)
     qualitative_notes = db.Column(db.Text)
+    # Link to a published HTML slide-deck Artifact walking through this ROI
+    # entry - from ROI.md's '## Presentation' section (optional, most
+    # automations won't have one). Opens in a new tab; not embedded, since
+    # Artifacts are served from claude.ai and can't be iframed here.
+    presentation_url = db.Column(db.String(500))
 
     automation = db.relationship("Automation", back_populates="roi")
 

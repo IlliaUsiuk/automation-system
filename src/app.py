@@ -128,6 +128,7 @@ def register_routes(app):
         automation.roi.hypothesis = form.get("hypothesis", "").strip()
         automation.roi.metric_description = form.get("metric_description", "").strip()
         automation.roi.confidence = form.get("confidence", "estimated")
+        automation.roi.presentation_url = form.get("presentation_url", "").strip() or None
 
     @app.route("/automations/new", methods=["GET", "POST"])
     @login_required
@@ -249,6 +250,7 @@ def register_routes(app):
             automation.roi.metric_description = fields["metric_description"] or automation.roi.metric_description
             automation.roi.confidence = fields["confidence"]
             automation.roi.measured_value = fields["measured_value"] or automation.roi.measured_value
+            automation.roi.presentation_url = fields["presentation_url"] or automation.roi.presentation_url
         elif not roi_text:
             warnings.append("ROI.md у репозиторії не знайдено.")
 
@@ -464,6 +466,7 @@ def register_routes(app):
             automation.roi.metric_description = roi.get("metric_description", automation.roi.metric_description)
             automation.roi.confidence = roi.get("confidence", automation.roi.confidence)
             automation.roi.measured_value = roi.get("measured_value", automation.roi.measured_value)
+            automation.roi.presentation_url = roi.get("presentation_url", automation.roi.presentation_url)
 
         if "comparison" in payload:
             comp = payload["comparison"] or {}
