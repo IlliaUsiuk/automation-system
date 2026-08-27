@@ -46,6 +46,12 @@
         <div>
           <div style="font-size:13.5px; font-weight:600;">{{ p.name }}</div>
           <div style="font-size:13px; color:var(--text-muted); line-height:1.55; margin-top:2px; white-space:pre-line;">{{ p.description }}</div>
+          {% if p.detail %}
+          <details style="margin-top:6px;">
+            <summary style="font-size:12.5px; color:var(--accent); cursor:pointer;">Детальніше</summary>
+            <div style="font-size:13px; color:var(--text-muted); line-height:1.55; margin-top:6px; white-space:pre-line;">{{ p.detail }}</div>
+          </details>
+          {% endif %}
         </div>
         {% endfor %}
       </div>
@@ -201,6 +207,13 @@
       <div class="roi-caption">{{ automation.roi.metric_description or "" }}</div>
       <div class="roi-divider"></div>
       <div class="roi-baseline">{{ automation.roi.hypothesis or "" }}</div>
+      {% if automation.roi.qualitative_notes %}
+      <ul style="font-size:12px; color:var(--accent-ink); opacity:.85; line-height:1.55; margin-top:10px; padding-left:16px;">
+        {% for line in automation.roi.qualitative_notes.split('\n') %}
+        {% if line.strip() %}<li>{{ line.strip() }}</li>{% endif %}
+        {% endfor %}
+      </ul>
+      {% endif %}
       {% if automation.roi.presentation_url %}
       <a class="btn" style="margin-top:10px; width:100%; justify-content:center;" href="{{ automation.roi.presentation_url }}" target="_blank" rel="noopener">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">

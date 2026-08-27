@@ -254,6 +254,11 @@ class AutomationPage(db.Model):
     automation_id = db.Column(db.Integer, db.ForeignKey("automation.id"), nullable=False)
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
+    # Longer write-up of this same page/screen, from dashboard/functions.md
+    # (a generated mirror of docs/functions.md - see automation-portfolio-sync's
+    # SKILL.md). Optional: older repos synced before this field existed, or
+    # ones without dashboard/functions.md, just leave it null.
+    detail = db.Column(db.Text)
     order_index = db.Column(db.Integer, nullable=False, default=0)
 
     automation = db.relationship("Automation", back_populates="pages")

@@ -1,5 +1,10 @@
 # TODO
 
+<!-- Machine-facing mirror for the portfolio dashboard's GitHub sync (see
+     src/github_sync.py). Generated verbatim from the repo's root TODO.md -
+     edit that file and regenerate this one via automation-portfolio-sync,
+     don't hand-edit this prose. -->
+
 - [x] «Що відбувається зараз» на картці автоматизації — реалізовано як простий факт,
   а не вгаданий етап: дашборд показує текст останнього коміту репозиторію і коли він
   стався (формулювання коміту не завжди відповідає етапу життєвого циклу, тож воно не

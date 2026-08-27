@@ -182,8 +182,15 @@ def register_routes(app):
         readme_text = github_sync.fetch_raw_file(owner_gh, repo, "README.md", branch)
         roi_text = github_sync.fetch_raw_file(owner_gh, repo, "dashboard/ROI.md", branch)
         summary_text = github_sync.fetch_raw_file(owner_gh, repo, "dashboard/SUMMARY.md", branch)
+        functions_text = github_sync.fetch_raw_file(owner_gh, repo, "dashboard/functions.md", branch)
         backlog_text = github_sync.fetch_raw_file(owner_gh, repo, "backlog/BACKLOG.md", branch)
-        todo_text = github_sync.fetch_raw_file(owner_gh, repo, "TODO.md", branch)
+        # dashboard/TODO.md is the generated mirror automation-portfolio-sync
+        # keeps in sync with the automation's real (root) TODO.md - prefer it,
+        # but fall back to the root file for repos synced before that mirror
+        # existed, so they don't silently lose their TODO section.
+        todo_text = github_sync.fetch_raw_file(owner_gh, repo, "dashboard/TODO.md", branch)
+        if todo_text is None:
+            todo_text = github_sync.fetch_raw_file(owner_gh, repo, "TODO.md", branch)
         latest_commit = github_sync.fetch_latest_commit(owner_gh, repo, branch)
 
         title, one_liner = github_sync.parse_readme(readme_text)
@@ -256,12 +263,15 @@ def register_routes(app):
             automation.roi.confidence = fields["confidence"]
             automation.roi.measured_value = fields["measured_value"] or automation.roi.measured_value
             automation.roi.presentation_url = fields["presentation_url"] or automation.roi.presentation_url
+            automation.roi.qualitative_notes = fields["qualitative_notes"] or automation.roi.qualitative_notes
         elif not roi_text:
             warnings.append("dashboard/ROI.md у репозиторії не знайдено.")
 
         if summary["pages"]:
+            function_details = github_sync.parse_functions_md(functions_text)
             automation.pages = [
-                AutomationPage(name=p["name"], description=p["description"], order_index=i)
+                AutomationPage(name=p["name"], description=p["description"],
+                                detail=function_details.get(p["name"]) or None, order_index=i)
                 for i, p in enumerate(summary["pages"])
             ]
 
