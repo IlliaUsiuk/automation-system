@@ -9,8 +9,10 @@ metrics per automation.
 None yet — this project *is* the dashboard. No separate metrics dashboard exists yet.
 
 ## Alerts
-Planned (Next, see `ROADMAP.md`): Telegram alerts when an automation breaks/fails.
-Threshold and exact trigger conditions are not decided yet — a design-stage decision.
+Planned (Next, see `ROADMAP.md`): Telegram alerts when an automation breaks/fails, via
+a push model — see `docs/telegram_alerts_plan.md` for the phased implementation plan.
+Exact trigger conditions beyond "an uncaught exception happened" are still not
+decided — see that plan's "Open questions".
 
 ## Gaps
 Everything — this is a bootstrap-time doc. No instrumentation, no alerting, and no

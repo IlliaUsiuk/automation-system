@@ -8,7 +8,8 @@
 - Login/access control for external (beyond-Supplax-network) access.
 
 ## Next
-- Telegram alerts when an automation breaks/fails.
+- Telegram alerts when an automation breaks/fails — see
+  `docs/telegram_alerts_plan.md` for the phased implementation plan.
 - A skill that lets a worker self-register their automation's access into this
   project via GitHub, instead of it being added by hand.
 
