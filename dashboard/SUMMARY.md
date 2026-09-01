@@ -62,3 +62,4 @@ Automation ROI Dashboard
 live
 
 ## Connections
+- hr-bot: зареєстрована в цьому дашборді
