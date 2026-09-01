@@ -14,7 +14,16 @@ def _now():
 
 class Role(enum.Enum):
     ADMIN = "admin"
+    AUTOMATOR = "automator"
     VIEWER = "viewer"
+
+    @property
+    def label(self):
+        return {
+            Role.ADMIN: "Адміністратор",
+            Role.AUTOMATOR: "Автоматизатор",
+            Role.VIEWER: "Глядач",
+        }[self]
 
 
 class Status(enum.Enum):
@@ -68,6 +77,18 @@ class User(UserMixin, db.Model):
     # only regenerated, same as CLICKUP_API_TOKEN's own security posture.
     api_key = db.Column(db.String(64), unique=True, nullable=False, default=lambda: secrets.token_hex(32))
     created_at = db.Column(db.DateTime, default=_now)
+    # Self-service registration gate (see /register, /confirm, src/telegram_bot.py).
+    # is_confirmed: the person entered the code the admin relayed to them out
+    # of band - proves they're a real person the admin let in, nothing more.
+    # is_approved: the admin actually granted a role via the "/grant" bot
+    # command. Login requires BOTH - a confirmed-but-unapproved account is a
+    # verified identity with zero access, by design. Accounts made via the
+    # `create-user` CLI (an admin typing directly, already trusted) set both
+    # True immediately and never go through this flow.
+    is_confirmed = db.Column(db.Boolean, nullable=False, default=False)
+    is_approved = db.Column(db.Boolean, nullable=False, default=False)
+    pending_code = db.Column(db.String(10))
+    pending_code_expires_at = db.Column(db.DateTime)
 
     automations = db.relationship("Automation", back_populates="owner")
 
@@ -80,6 +101,15 @@ class User(UserMixin, db.Model):
     @property
     def is_admin(self):
         return self.role == Role.ADMIN
+
+    @property
+    def is_automator(self):
+        return self.role == Role.AUTOMATOR
+
+    def can_manage(self, automation):
+        """Admin manages everything; an Automator only the automations they
+        own (automation.owner_id == their own id); a Viewer manages none."""
+        return self.is_admin or (self.is_automator and automation.owner_id == self.id)
 
     @property
     def initials(self):
@@ -169,7 +199,7 @@ class ROIEntry(db.Model):
     hypothesis = db.Column(db.Text)
     metric_description = db.Column(db.Text)
     confidence = db.Column(db.String(20), default="estimated")  # estimated | measured
-    measured_value = db.Column(db.String(255))
+    measured_value = db.Column(db.Text)
     measured_at = db.Column(db.DateTime)
     qualitative_notes = db.Column(db.Text)
     # Link to a published HTML slide-deck Artifact walking through this ROI

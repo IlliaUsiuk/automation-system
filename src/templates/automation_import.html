@@ -19,11 +19,15 @@
   <p class="page-subtitle" style="margin:0;">Прив'язується до вже існуючої автоматизації «{{ prefill_slug }}» — її дані оновляться, нова картка не створиться.</p>
   {% endif %}
   <label>Власник автоматизації
+    {% if current_user.is_admin %}
     <select name="owner_id" required>
       {% for u in users %}
       <option value="{{ u.id }}" {% if prefill_owner_id == u.id or (not prefill_owner_id and u.id == current_user.id) %}selected{% endif %}>{{ u.name }}</option>
       {% endfor %}
     </select>
+    {% else %}
+    <input type="text" value="{{ current_user.name }}" disabled>
+    {% endif %}
   </label>
   <label>Статус <span class="page-subtitle" style="margin:0;">(порожньо — взяти з dashboard/SUMMARY.md, якщо він є)</span>
     <select name="status">

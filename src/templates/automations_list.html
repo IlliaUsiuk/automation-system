@@ -4,10 +4,10 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <div class="page-title sora">Automation Registry</div>
+    <div class="page-title sora">Реєстр автоматизацій</div>
     <div class="page-subtitle">Кожна автоматизація в Supplax — що вона робить, хто нею володіє, і що вона дає.</div>
   </div>
-  {% if current_user.is_admin %}
+  {% if current_user.is_admin or current_user.is_automator %}
   <div style="display:flex; gap:8px;">
     <a class="btn" href="{{ url_for('automation_import_github') }}">Синхронізувати з GitHub</a>
     <a class="btn btn-primary" href="{{ url_for('automation_new') }}">+ Додати автоматизацію</a>
@@ -72,7 +72,7 @@
 {% else %}
 <div class="empty-state">
   <p>Поки немає жодної автоматизації.</p>
-  {% if current_user.is_admin %}
+  {% if current_user.is_admin or current_user.is_automator %}
   <a class="btn btn-primary" href="{{ url_for('automation_new') }}">Додати першу</a>
   {% else %}
   <p>Зверніться до адміністратора.</p>

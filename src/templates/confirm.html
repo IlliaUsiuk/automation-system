@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Підтвердження{% endblock %}
+{% block login_content %}
+<div class="login-wrap">
+  <form class="login-card" method="post">
+    <div class="login-brand">SUPPLAX</div>
+    <h1 class="sora">Підтвердження реєстрації</h1>
+    <label>Email
+      <input type="email" name="email" value="{{ email }}" required autofocus>
+    </label>
+    <label>Код підтвердження
+      <input type="text" name="code" inputmode="numeric" pattern="[0-9]*" required>
+    </label>
+    <button type="submit" class="btn btn-primary" style="justify-content:center">Підтвердити</button>
+    <p class="login-note">Код тобі назве адміністратор — він отримав його в Telegram після твоєї реєстрації.</p>
+  </form>
+</div>
+{% endblock %}

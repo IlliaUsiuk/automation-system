@@ -12,7 +12,8 @@
       <input type="password" name="password" required>
     </label>
     <button type="submit" class="btn btn-primary" style="justify-content:center">Увійти</button>
-    <p class="login-note">Акаунт створює адміністратор — самостійної реєстрації немає.</p>
+    <p class="login-note">Немає акаунта? <a href="{{ url_for('register') }}">Зареєструйся</a> —
+      доступ підтверджує адміністратор у Telegram.</p>
   </form>
 </div>
 {% endblock %}

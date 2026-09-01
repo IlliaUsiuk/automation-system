@@ -13,7 +13,7 @@
     <span class="avatar lg">{{ automator.initials }}</span>
     <div>
       <div class="detail-title sora">{{ automator.name }}</div>
-      <div class="page-subtitle">{{ automator.email }} · {{ "Адміністратор" if automator.is_admin else "Автоматизатор" }}</div>
+      <div class="page-subtitle">{{ automator.email }} · {{ automator.role.label }}</div>
     </div>
   </div>
 </div>

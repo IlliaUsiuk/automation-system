@@ -20,11 +20,15 @@
     <input type="text" name="one_liner" value="{{ automation.one_liner if automation else '' }}">
   </label>
   <label>Власник
+    {% if current_user.is_admin %}
     <select name="owner_id">
       {% for u in users %}
       <option value="{{ u.id }}" {% if automation and automation.owner_id == u.id %}selected{% elif not automation and u.id == current_user.id %}selected{% endif %}>{{ u.name }}</option>
       {% endfor %}
     </select>
+    {% else %}
+    <input type="text" value="{{ current_user.name }}" disabled>
+    {% endif %}
   </label>
   <label>Статус
     <select name="status">
@@ -63,8 +67,8 @@
     </label>
     <label>Стан
       <select name="confidence">
-        <option value="estimated" {% if automation and automation.roi and automation.roi.confidence == 'estimated' %}selected{% endif %}>Estimated</option>
-        <option value="measured" {% if automation and automation.roi and automation.roi.confidence == 'measured' %}selected{% endif %}>Measured</option>
+        <option value="estimated" {% if automation and automation.roi and automation.roi.confidence == 'estimated' %}selected{% endif %}>Оцінка</option>
+        <option value="measured" {% if automation and automation.roi and automation.roi.confidence == 'measured' %}selected{% endif %}>Виміряно</option>
       </select>
     </label>
     <label>Посилання на презентацію (необов'язково)

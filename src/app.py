@@ -1,5 +1,6 @@
 import os
-from datetime import datetime
+import secrets
+from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 
@@ -8,7 +9,7 @@ from dotenv import load_dotenv
 from flask import Flask, abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
-from . import github_sync
+from . import github_sync, telegram
 from .extensions import db, login_manager
 from .models import (
     Automation,
@@ -61,6 +62,20 @@ def admin_required(view):
     return wrapped
 
 
+def automator_required(view):
+    """Admin or Automator - the two roles allowed to create automations at
+    all. Which EXISTING automation a non-admin Automator may then edit/resync
+    is a separate, per-automation check (User.can_manage) done inside the
+    view once the automation is loaded, not something a route-level
+    decorator can express."""
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role not in (Role.ADMIN, Role.AUTOMATOR):
+            abort(403)
+        return view(*args, **kwargs)
+    return wrapped
+
+
 def register_routes(app):
     @app.route("/")
     def index():
@@ -73,10 +88,80 @@ def register_routes(app):
             password = request.form.get("password", "")
             user = User.query.filter_by(email=email).first()
             if user and user.check_password(password):
+                if not user.is_confirmed:
+                    flash("Спочатку підтверди код, який тобі назве адміністратор.")
+                    return redirect(url_for("confirm", email=email))
+                if not user.is_approved:
+                    flash("Код підтверджено, але адміністратор ще не надав доступ у Telegram-боті.")
+                    return render_template("login.html")
                 login_user(user)
                 return redirect(url_for("automations_list"))
             flash("Невірний email або пароль.")
         return render_template("login.html")
+
+    @app.route("/register", methods=["GET", "POST"])
+    def register():
+        if request.method == "POST":
+            email = request.form.get("email", "").strip().lower()
+            name = request.form.get("name", "").strip()
+            password = request.form.get("password", "")
+            password_confirm = request.form.get("password_confirm", "")
+            if not email or not name or not password:
+                flash("Заповни всі поля.")
+                return render_template("register.html")
+            if password != password_confirm:
+                flash("Паролі не збігаються.")
+                return render_template("register.html")
+
+            existing = User.query.filter_by(email=email).first()
+            if existing and (existing.is_confirmed or existing.is_approved):
+                flash("Акаунт з такою поштою вже існує — увійди звичайним способом.")
+                return render_template("register.html")
+
+            user = existing or User(email=email, role=Role.VIEWER)
+            user.name = name
+            user.set_password(password)
+            user.pending_code = f"{secrets.randbelow(1_000_000):06d}"
+            user.pending_code_expires_at = _now().replace(tzinfo=None) + timedelta(minutes=30)
+            if existing is None:
+                db.session.add(user)
+            db.session.commit()
+
+            sent = telegram.send_message(
+                os.environ.get("ADMIN_TELEGRAM_CHAT_ID"),
+                f"Нова реєстрація на дашборді: {name} <{email}>.\n"
+                f"Код підтвердження: {user.pending_code} (дійсний 30 хв).\n"
+                f"Передай код людині, а після підтвердження встанови права: "
+                f"/grant {email} viewer (або automator/admin).",
+            )
+            if not sent:
+                flash("Реєстрацію збережено, але не вдалося сповістити адміністратора в Telegram — "
+                      "звернись до нього напряму.")
+            else:
+                flash("Реєстрацію подано. Введи код підтвердження, який тобі назве адміністратор.")
+            return redirect(url_for("confirm", email=email))
+        return render_template("register.html")
+
+    @app.route("/confirm", methods=["GET", "POST"])
+    def confirm():
+        email = request.values.get("email", "").strip().lower()
+        if request.method == "POST":
+            code = request.form.get("code", "").strip()
+            user = User.query.filter_by(email=email).first()
+            if not user or not user.pending_code:
+                flash("Акаунт не знайдено, або код уже використано.")
+            elif user.pending_code_expires_at and user.pending_code_expires_at < _now().replace(tzinfo=None):
+                flash("Код застарів — попроси адміністратора зареєструвати тебе ще раз.")
+            elif code != user.pending_code:
+                flash("Невірний код.")
+            else:
+                user.is_confirmed = True
+                user.pending_code = None
+                user.pending_code_expires_at = None
+                db.session.commit()
+                flash("Акаунт підтверджено. Очікуй, поки адміністратор надасть доступ у Telegram-боті.")
+                return redirect(url_for("login"))
+        return render_template("confirm.html", email=email)
 
     @app.route("/logout")
     @login_required
@@ -117,7 +202,13 @@ def register_routes(app):
         automation.name = form["name"].strip()
         automation.one_liner = form.get("one_liner", "").strip()
         automation.status = Status(form["status"])
-        automation.owner_id = int(form.get("owner_id") or automation.owner_id)
+        # Only an Admin may hand an automation to someone else - an
+        # Automator's own automations always stay owned by them, regardless
+        # of what the (hidden, for them) owner field in the form said.
+        if current_user.is_admin:
+            automation.owner_id = int(form.get("owner_id") or automation.owner_id)
+        else:
+            automation.owner_id = current_user.id
         automation.repo_url = form.get("repo_url", "").strip() or None
         automation.clickup_url = form.get("clickup_url", "").strip() or None
         automation.departments = Department.query.filter(
@@ -132,7 +223,7 @@ def register_routes(app):
 
     @app.route("/automations/new", methods=["GET", "POST"])
     @login_required
-    @admin_required
+    @automator_required
     def automation_new():
         users = User.query.order_by(User.name).all()
         departments = Department.query.order_by(Department.name).all()
@@ -148,9 +239,10 @@ def register_routes(app):
 
     @app.route("/automations/<slug>/edit", methods=["GET", "POST"])
     @login_required
-    @admin_required
     def automation_edit(slug):
         automation = Automation.query.filter_by(slug=slug).first_or_404()
+        if not current_user.can_manage(automation):
+            abort(403)
         users = User.query.order_by(User.name).all()
         departments = Department.query.order_by(Department.name).all()
         skills = Skill.query.order_by(Skill.name).all()
@@ -210,7 +302,12 @@ def register_routes(app):
         automation.repo_url = repo_url
         automation.owner_id = owner_id
         automation.last_synced_at = _now()
-        automation.current_stage_override = summary["current_stage_override"]
+        if summary_text:
+            # Only overwrite the manual override when SUMMARY.md was actually
+            # fetched - otherwise a missing file would silently wipe out a
+            # human-entered override ("очікуємо погодження") just because
+            # the file wasn't there to read, not because anyone cleared it.
+            automation.current_stage_override = summary["current_stage_override"]
         if latest_commit:
             automation.last_commit_message = latest_commit["message"]
             if latest_commit["date"]:
@@ -229,7 +326,10 @@ def register_routes(app):
 
         if selected_dept_ids:
             automation.departments = Department.query.filter(Department.id.in_(selected_dept_ids)).all()
-        elif summary["departments"]:
+        elif summary_text:
+            # Gate on the file having been fetched, not on the parsed list
+            # being non-empty - a repo that genuinely lists no departments
+            # anymore must clear old ones, not keep whatever synced last time.
             depts = []
             for name in summary["departments"]:
                 dept = Department.query.filter_by(name=name).first()
@@ -239,7 +339,7 @@ def register_routes(app):
                 depts.append(dept)
             automation.departments = depts
 
-        if summary["connections"]:
+        if summary_text:
             links = []
             skipped = []
             for c in summary["connections"]:
@@ -249,8 +349,7 @@ def register_routes(app):
                                              relationship_type=c["relationship_type"]))
                 elif c["slug"]:
                     skipped.append(c["slug"])
-            if links:
-                automation.connections = links
+            automation.connections = links
             if skipped:
                 warnings.append("Не знайдено (ще?) автоматизації для зв'язку: " + ", ".join(skipped))
 
@@ -267,24 +366,48 @@ def register_routes(app):
         elif not roi_text:
             warnings.append("dashboard/ROI.md у репозиторії не знайдено.")
 
-        if summary["pages"]:
+        if summary_text:
+            # summary_text present means dashboard/SUMMARY.md was actually
+            # fetched - an empty "## Pages" section there is a real signal
+            # ("this repo has no pages to report"), not a fetch miss, so it
+            # must clear stale pages instead of leaving old ones stuck
+            # forever (unlike summary_text is None, where SUMMARY.md itself
+            # is missing and the existing warning above already covers it).
             function_details = github_sync.parse_functions_md(functions_text)
-            automation.pages = [
-                AutomationPage(name=p["name"], description=p["description"],
-                                detail=function_details.get(p["name"]) or None, order_index=i)
-                for i, p in enumerate(summary["pages"])
-            ]
+            if summary["pages"]:
+                automation.pages = [
+                    AutomationPage(name=p["name"], description=p["description"],
+                                    detail=function_details.get(p["name"]) or None, order_index=i)
+                    for i, p in enumerate(summary["pages"])
+                ]
+            elif function_details:
+                # Headless automation (no UI screens, so no '## Pages' in
+                # SUMMARY.md) - dashboard/functions.md's own sections are
+                # still real content, so show them directly instead of
+                # losing them entirely for lack of a page to attach to.
+                automation.pages = [
+                    AutomationPage(name=name, description=body, order_index=i)
+                    for i, (name, body) in enumerate(function_details.items())
+                ]
+            else:
+                automation.pages = []
 
-        backlog_entries = github_sync.parse_backlog_md(backlog_text, limit=5)
-        if backlog_entries:
+        if backlog_text is not None:
+            # fetch_raw_file only returns None on a confirmed 404 - any other
+            # fetch failure raises and aborts the sync before this point, so
+            # "file fetched" vs "file missing" is a real, deterministic fact
+            # here, not a network blip. Gate on that, not on the parsed list
+            # being non-empty, so a cleared-out BACKLOG.md actually clears
+            # the dashboard's stale review log instead of leaving it stuck.
+            backlog_entries = github_sync.parse_backlog_md(backlog_text, limit=5)
             automation.review_log = [
                 ReviewLogEntry(round_label=e["round_label"], found=e["found"],
                                 changed=e["changed"], rejected=e["rejected"], order_index=i)
                 for i, e in enumerate(backlog_entries)
             ]
 
-        todo_items = github_sync.parse_todo_md(todo_text)
-        if todo_items:
+        if todo_text is not None:
+            todo_items = github_sync.parse_todo_md(todo_text)
             automation.todo_items = [
                 AutomationTodoItem(text=t["text"], done=t["done"], order_index=i)
                 for i, t in enumerate(todo_items)
@@ -294,7 +417,7 @@ def register_routes(app):
 
     @app.route("/automations/import-github", methods=["GET", "POST"])
     @login_required
-    @admin_required
+    @automator_required
     def automation_import_github():
         users = User.query.order_by(User.name).all()
         departments = Department.query.order_by(Department.name).all()
@@ -302,14 +425,19 @@ def register_routes(app):
             repo_url = request.form["repo_url"].strip()
             slug = request.form.get("slug", "").strip() or None
             existing = Automation.query.filter_by(slug=slug).first() if slug else None
+            if existing and not current_user.can_manage(existing):
+                flash("Ця автоматизація вже зареєстрована іншим автоматизатором.")
+                return redirect(url_for("automation_import_github"))
+            owner_id = int(request.form["owner_id"]) if current_user.is_admin else current_user.id
             try:
                 automation, warnings = sync_automation_from_github(
-                    existing, repo_url, int(request.form["owner_id"]),
+                    existing, repo_url, owner_id,
                     request.form.get("status") or "", request.form.getlist("departments"), slug=slug)
             except ValueError as e:
                 flash(str(e))
                 return redirect(url_for("automation_import_github"))
             except Exception:
+                db.session.rollback()
                 app.logger.exception("GitHub import failed for %s", repo_url)
                 flash("Не вдалося звернутися до GitHub — перевір посилання і чи репозиторій публічний "
                       "(або що GITHUB_TOKEN в .env дійсний, якщо приватний).")
@@ -326,18 +454,27 @@ def register_routes(app):
 
     @app.route("/automations/<slug>/resync", methods=["POST"])
     @login_required
-    @admin_required
     def automation_resync(slug):
         """The per-automation 'Оновити з GitHub' button - re-fetches from the
         repo_url already on file, no form to refill."""
         automation = Automation.query.filter_by(slug=slug).first_or_404()
-        if not automation.repo_url:
+        if not current_user.can_manage(automation):
+            abort(403)
+        repo_url = automation.repo_url
+        if not repo_url:
             flash("У цієї автоматизації не вказано посилання на репозиторій.")
             return redirect(url_for("automation_detail", slug=slug))
         try:
             automation, warnings = sync_automation_from_github(
-                automation, automation.repo_url, automation.owner_id, "", [])
+                automation, repo_url, automation.owner_id, "", [])
         except Exception:
+            # Roll back first - a failed flush (e.g. a DB constraint error)
+            # leaves the session unusable, and touching any ORM attribute
+            # (even automation.repo_url, already read above into a plain
+            # local var precisely to avoid this) before rolling back raises
+            # a second, unrelated PendingRollbackError that masks the real one.
+            db.session.rollback()
+            app.logger.exception("GitHub resync failed for %s", repo_url)
             flash("Не вдалося звернутися до GitHub — перевір, чи репозиторій усе ще доступний.")
             return redirect(url_for("automation_detail", slug=slug))
 
@@ -429,6 +566,8 @@ def register_routes(app):
         owner = User.query.filter_by(api_key=api_key).first() if api_key else None
         if not owner:
             return jsonify({"error": "invalid or missing X-API-Key"}), 401
+        if owner.role not in (Role.ADMIN, Role.AUTOMATOR):
+            return jsonify({"error": "this account isn't allowed to create or manage automations"}), 403
 
         payload = request.get_json(silent=True) or {}
         if "name" not in payload:
@@ -510,6 +649,36 @@ def register_cli(app):
         db.create_all()
         click.echo("Database tables created.")
 
+    @app.cli.command("migrate-registration")
+    def migrate_registration():
+        """One-off schema migration for self-service registration - adds
+        user.is_confirmed/is_approved/pending_code/pending_code_expires_at.
+        Introspects existing columns first (works against SQLite or
+        Postgres, whichever DATABASE_URL points at) so it's safe to run more
+        than once. Existing rows get backfilled as already confirmed+approved
+        (DEFAULT TRUE on the ADD COLUMN itself) so this can't lock out logins
+        that already work - it doesn't matter that the column's DB-level
+        default stays TRUE afterwards, since every INSERT going through the
+        ORM (e.g. /register) always passes an explicit value from the model's
+        own Python-side default=False, never relying on the DB default."""
+        existing_cols = {c["name"] for c in db.inspect(db.engine).get_columns("user")}
+        statements = []
+        if "is_confirmed" not in existing_cols:
+            statements.append('ALTER TABLE "user" ADD COLUMN is_confirmed BOOLEAN NOT NULL DEFAULT TRUE')
+        if "is_approved" not in existing_cols:
+            statements.append('ALTER TABLE "user" ADD COLUMN is_approved BOOLEAN NOT NULL DEFAULT TRUE')
+        if "pending_code" not in existing_cols:
+            statements.append('ALTER TABLE "user" ADD COLUMN pending_code VARCHAR(10)')
+        if "pending_code_expires_at" not in existing_cols:
+            statements.append('ALTER TABLE "user" ADD COLUMN pending_code_expires_at TIMESTAMP')
+        if not statements:
+            click.echo("Already migrated - nothing to do.")
+            return
+        for stmt in statements:
+            db.session.execute(db.text(stmt))
+        db.session.commit()
+        click.echo(f"Migrated: added {len(statements)} column(s) to user.")
+
     @app.cli.command("create-user")
     @click.argument("email")
     @click.argument("name")
@@ -518,7 +687,8 @@ def register_cli(app):
         """Create a login account. Prompts for the password (hidden input) -
         never pass it as a command-line argument."""
         password = click.prompt("Password", hide_input=True, confirmation_prompt=True)
-        user = User(email=email.strip().lower(), name=name.strip(), role=Role.ADMIN if admin else Role.VIEWER)
+        user = User(email=email.strip().lower(), name=name.strip(), role=Role.ADMIN if admin else Role.VIEWER,
+                    is_confirmed=True, is_approved=True)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
