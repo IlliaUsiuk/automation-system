@@ -553,6 +553,59 @@ def register_routes(app):
         skills = Skill.query.order_by(Skill.name).all()
         return render_template("skills_library.html", skills=skills)
 
+    def sync_skill_from_github(repo_url):
+        """One repo = one skill, its SKILL.md at repo root - the same shape
+        every skill under ~/.claude/skills already has. Looks up an existing
+        Skill by the parsed name first, so re-importing the same (or a
+        renamed-URL-but-same-name) repo updates that row instead of creating
+        a duplicate entry. Raises on a GitHub fetch failure or a missing/
+        malformed SKILL.md - the caller turns that into a flash message."""
+        parsed = github_sync.parse_repo_url(repo_url)
+        if not parsed:
+            raise ValueError("Не схоже на посилання на GitHub-репозиторій "
+                              "(очікую https://github.com/власник/репо).")
+        owner_gh, repo = parsed
+
+        branch = github_sync.default_branch(owner_gh, repo)
+        skill_text = github_sync.fetch_raw_file(owner_gh, repo, "SKILL.md", branch)
+        if skill_text is None:
+            raise ValueError("SKILL.md не знайдено в корені цього репозиторію.")
+        fields = github_sync.parse_skill_md(skill_text)
+        if not fields.get("name"):
+            raise ValueError("SKILL.md знайдено, але в ньому немає поля 'name' у frontmatter.")
+
+        skill = Skill.query.filter_by(name=fields["name"]).first()
+        if skill is None:
+            skill = Skill(name=fields["name"])
+            db.session.add(skill)
+        skill.description = fields.get("description") or skill.description
+        skill.repo_url = repo_url
+        skill.doc_url = f"https://github.com/{owner_gh}/{repo}/blob/{branch}/SKILL.md"
+        return skill
+
+    @app.route("/skills/import-github", methods=["GET", "POST"])
+    @login_required
+    @automator_required
+    def skill_import_github():
+        if request.method == "POST":
+            repo_url = request.form["repo_url"].strip()
+            try:
+                skill = sync_skill_from_github(repo_url)
+            except ValueError as e:
+                flash(str(e))
+                return redirect(url_for("skill_import_github"))
+            except Exception:
+                db.session.rollback()
+                app.logger.exception("GitHub import failed for skill %s", repo_url)
+                flash("Не вдалося звернутися до GitHub — перевір посилання і чи репозиторій публічний "
+                      "(або що GITHUB_TOKEN в .env дійсний, якщо приватний).")
+                return redirect(url_for("skill_import_github"))
+
+            db.session.commit()
+            flash(f"Синхронізовано скіл «{skill.name}» з {repo_url}.")
+            return redirect(url_for("skills_library"))
+        return render_template("skill_import.html")
+
     @app.route("/api/automations/<slug>/sync", methods=["POST"])
     def api_sync_automation(slug):
         """Machine-facing endpoint for stage-0-supplax's portfolio-sync step to
@@ -678,6 +731,19 @@ def register_cli(app):
             db.session.execute(db.text(stmt))
         db.session.commit()
         click.echo(f"Migrated: added {len(statements)} column(s) to user.")
+
+    @app.cli.command("migrate-skill-repo-url")
+    def migrate_skill_repo_url():
+        """One-off schema migration for GitHub-imported skills - adds
+        skill.repo_url (see /skills/import-github). Introspects existing
+        columns first, so it's safe to run more than once."""
+        existing_cols = {c["name"] for c in db.inspect(db.engine).get_columns("skill")}
+        if "repo_url" in existing_cols:
+            click.echo("Already migrated - nothing to do.")
+            return
+        db.session.execute(db.text("ALTER TABLE skill ADD COLUMN repo_url VARCHAR(500)"))
+        db.session.commit()
+        click.echo("Migrated: added repo_url column to skill.")
 
     @app.cli.command("create-user")
     @click.argument("email")

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% set active_nav = 'skills' %}
+{% block title %}Синхронізація скіла з GitHub{% endblock %}
+{% block content %}
+<div class="page-title sora">Додати скіл з GitHub</div>
+<div class="page-subtitle" style="margin-bottom: 1rem;">
+  Візьме SKILL.md з кореня репозиторію (один репозиторій — один скіл) і заповнить картку сам.
+</div>
+<form method="post" class="form">
+  <label>Посилання на репозиторій
+    <input type="url" name="repo_url" required placeholder="https://github.com/owner/skill-repo">
+  </label>
+  <button type="submit" class="btn btn-primary">Синхронізувати</button>
+</form>
+{% endblock %}

@@ -7,6 +7,11 @@
     <div class="page-title sora">Бібліотека скіллів</div>
     <div class="page-subtitle">Скіли Claude Code, на які спираються автоматизації.</div>
   </div>
+  {% if current_user.is_admin or current_user.is_automator %}
+  <div style="display:flex; gap:8px;">
+    <a class="btn btn-primary" href="{{ url_for('skill_import_github') }}">Додати з GitHub</a>
+  </div>
+  {% endif %}
 </div>
 
 <div class="toolbar">
@@ -35,6 +40,11 @@
   {% endfor %}
 </div>
 {% else %}
-<div class="empty-state"><p>Скіллів ще не додано.</p></div>
+<div class="empty-state">
+  <p>Скіллів ще не додано.</p>
+  {% if current_user.is_admin or current_user.is_automator %}
+  <a class="btn btn-primary" href="{{ url_for('skill_import_github') }}">Додати перший з GitHub</a>
+  {% endif %}
+</div>
 {% endif %}
 {% endblock %}

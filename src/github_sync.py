@@ -120,6 +120,25 @@ def parse_readme(text):
     return title, one_liner
 
 
+_FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?\n)---\s*(?:\n|$)", re.DOTALL)
+_FRONTMATTER_FIELD_RE = re.compile(r"^(name|description):\s*(.*)$", re.MULTILINE)
+
+
+def parse_skill_md(text):
+    """A Claude Code skill's SKILL.md: YAML frontmatter with 'name'/
+    'description' keys. Every skill in this project's own ~/.claude/skills
+    writes description as one single line (no YAML block-style multiline,
+    no quoting), so a plain per-line regex is enough - this isn't a general
+    YAML parser. Returns {} if there's no '---' frontmatter block at all."""
+    if not text:
+        return {}
+    m = _FRONTMATTER_RE.match(text)
+    if not m:
+        return {}
+    return {fm.group(1): fm.group(2).strip() or None
+            for fm in _FRONTMATTER_FIELD_RE.finditer(m.group(1))}
+
+
 _HEADER_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 _HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 

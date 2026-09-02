@@ -300,3 +300,8 @@ class Skill(db.Model):
     description = db.Column(db.Text)
     when_to_use = db.Column(db.Text)
     doc_url = db.Column(db.String(500))
+    # Set only for skills pulled in via /skills/import-github (one repo = one
+    # skill, its SKILL.md at repo root) - lets re-importing the same repo
+    # update this row by name instead of creating a duplicate. Null for
+    # skills that only ever arrived via the API sync payload or seed-demo.
+    repo_url = db.Column(db.String(500))
