@@ -163,18 +163,27 @@ _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?\n)---\s*(?:\n|$)", re.DOTALL)
 _FRONTMATTER_FIELD_RE = re.compile(r"^(name|description):\s*(.*)$", re.MULTILINE)
 
 
+def _strip_yaml_quotes(value):
+    """A YAML scalar may or may not be quoted ('name: foo' and
+    'name: "foo"' are both valid and both show up across real skills) -
+    strip one matching pair of quotes, not a general YAML unescaper."""
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        return value[1:-1]
+    return value
+
+
 def parse_skill_md(text):
     """A Claude Code skill's SKILL.md: YAML frontmatter with 'name'/
-    'description' keys. Every skill in this project's own ~/.claude/skills
-    writes description as one single line (no YAML block-style multiline,
-    no quoting), so a plain per-line regex is enough - this isn't a general
-    YAML parser. Returns {} if there's no '---' frontmatter block at all."""
+    'description' keys. Every skill writes these as one single line (no
+    YAML block-style multiline), so a plain per-line regex plus a single
+    quote-strip is enough - this isn't a general YAML parser. Returns {}
+    if there's no '---' frontmatter block at all."""
     if not text:
         return {}
     m = _FRONTMATTER_RE.match(text)
     if not m:
         return {}
-    return {fm.group(1): fm.group(2).strip() or None
+    return {fm.group(1): _strip_yaml_quotes(fm.group(2).strip()) or None
             for fm in _FRONTMATTER_FIELD_RE.finditer(m.group(1))}
 
 

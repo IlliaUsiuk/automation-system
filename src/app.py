@@ -809,6 +809,67 @@ def register_cli(app):
         db.session.commit()
         click.echo("Migrated: added repo_url column to skill.")
 
+    _SKILL_DESCRIPTIONS_UK = {
+        "automation-portfolio-sync": "Перевіряє, чи репозиторій автоматизації готовий до синку з цим "
+            "дашбордом, і сам виправляє формат файлів, якщо щось не так. Цінність: жодна автоматизація "
+            "не потрапляє в дашборд з порожньою чи битою карткою.",
+        "changelog-generator": "Формує CHANGELOG і визначає наступну версію з git-комітів за "
+            "Conventional Commits. Цінність: реліз-нотатки й версії більше не пишуться вручну і не "
+            "розходяться з реальними змінами.",
+        "clickup-task": "Оформлює вже обговорену роботу в задачу ClickUp: короткий опис і чекліст "
+            "зробленого й того, що лишилось. Цінність: жодна домовленість не губиться між чатом і "
+            "трекером задач.",
+        "deep-research": "Проводить глибоке дослідження теми через OpenAI Deep Research API з пошуком "
+            "в інтернеті. Цінність: розгорнутий аналіз замість короткої відповіді, коли питання того "
+            "варте.",
+        "doc-sync": "Пише або оновлює проєктну документацію, звіряючи її з реальним кодом і форматними "
+            "правилами кожного типу файлу. Цінність: документація не розходиться з тим, що насправді є "
+            "в проєкті.",
+        "git-worktree-manager": "Організовує паралельну роботу над кількома фічами через git worktree "
+            "— окремі гілки, порти, середовища. Цінність: кілька задач чи агентів працюють одночасно, "
+            "не заважаючи один одному в тому самому репозиторії.",
+        "humanizer": "Прибирає ознаки «написано ШІ» з тексту — канцелярит, зайві прикметники, штучні "
+            "звороти. Цінність: текст, який дійсно читається як написаний людиною.",
+        "skill-security-auditor": "Перевіряє скіл на небезпечний код (виконання команд, мережеві "
+            "запити, спроби промпт-ін'єкції) перед тим, як його встановити. Цінність: сторонній скіл не "
+            "стане способом непомітно щось зламати чи вкрасти дані.",
+        "stage-0-supplax": "Створює повний стандартний набір документів для нового проєкту і вміє "
+            "окремо перевіряти вже написані доки на прогалини й суперечності. Цінність: жоден проєкт не "
+            "стартує без базової документації, і стара документація не лишається неперевіреною.",
+        "tdd-guide": "Допомагає писати тести й вести розробку через них — Jest, Pytest, JUnit, Vitest, "
+            "Mocha, включно з моками й аналізом покриття. Цінність: код одразу перевірений тестами, а "
+            "не «колись потім».",
+        "use-railway": "Керує інфраструктурою Railway: створення проєктів, сервісів, змінних, доменів, "
+            "розгортання, діагностика падінь. Цінність: розгортання й адміністрування Railway без "
+            "ручного клацання в UI.",
+    }
+
+    @app.cli.command("curate-skill-descriptions")
+    def curate_skill_descriptions():
+        """One-off data fix for skills pulled in via /skills/import-github's
+        folder mode: strips a stray leading/trailing quote character off
+        `name` left over from before github_sync.parse_skill_md stripped
+        YAML quoting itself, and replaces the raw (often long, English)
+        SKILL.md description with a short, value-focused Ukrainian one for
+        the skills this project actually knows about. Safe to re-run - it
+        only ever overwrites a name/description this command itself
+        controls, and does nothing to a skill name it doesn't recognize.
+        Whoever re-imports this folder from GitHub later will overwrite
+        these back to the raw SKILL.md text, same as any other sync - this
+        is a content curation pass, not a permanent override."""
+        changed = 0
+        for skill in Skill.query.all():
+            cleaned_name = skill.name.strip("\"'") if skill.name else skill.name
+            if cleaned_name != skill.name:
+                skill.name = cleaned_name
+                changed += 1
+            uk_description = _SKILL_DESCRIPTIONS_UK.get(cleaned_name)
+            if uk_description and skill.description != uk_description:
+                skill.description = uk_description
+                changed += 1
+        db.session.commit()
+        click.echo(f"Curated {changed} skill field(s).")
+
     @app.cli.command("create-user")
     @click.argument("email")
     @click.argument("name")
