@@ -53,7 +53,8 @@ Automation ROI Dashboard
 
 ### Бібліотека скілів
 Каталог скілів Claude Code з описом кожного і кількістю автоматизацій, де його вже
-використали.
+використали. Новий скіл можна додати прямо з GitHub: за посиланням на репозиторій
+або на папку з кількома скілами одразу.
 
 ## Departments
 - IT
@@ -63,3 +64,8 @@ live
 
 ## Connections
 - hr-bot: зареєстрована в цьому дашборді
+
+## Skills
+- automation-portfolio-sync
+- doc-sync
+- humanizer
