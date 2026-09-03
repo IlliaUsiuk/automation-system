@@ -243,6 +243,7 @@ def summary_fields_from_sections(sections):
     one_liner = sections.get("One-liner") or None
     description = sections.get("What it does") or None
     departments = _bullet_items(sections.get("Departments", ""))
+    skills = _bullet_items(sections.get("Skills", ""))
     status_raw = (sections.get("Status") or "").strip().lower()
     connections = []
     for item in _bullet_items(sections.get("Connections", "")):
@@ -253,6 +254,7 @@ def summary_fields_from_sections(sections):
         "one_liner": one_liner,
         "description": description,
         "departments": departments,
+        "skills": skills,
         "status": status_raw or None,
         "connections": connections,
         "pages": parse_pages_section(sections.get("Pages", "")),

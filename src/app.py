@@ -353,6 +353,26 @@ def register_routes(app):
             if skipped:
                 warnings.append("Не знайдено (ще?) автоматизації для зв'язку: " + ", ".join(skipped))
 
+        if summary_text:
+            # Unlike Departments, don't auto-create a bare Skill row for a
+            # name that isn't already in the library - the library is a
+            # curated catalog (real description, doc_url, imported from an
+            # actual skill repo), not free-text tags, so an unmatched name
+            # is reported and skipped instead, same treatment Connections'
+            # unmatched slug already gets above.
+            skills = []
+            skipped_skills = []
+            for name in summary["skills"]:
+                skill = Skill.query.filter_by(name=name).first()
+                if skill:
+                    skills.append(skill)
+                else:
+                    skipped_skills.append(name)
+            automation.skills = skills
+            if skipped_skills:
+                warnings.append("Не знайдено в бібліотеці скіл(и): " + ", ".join(skipped_skills) +
+                                 " — спершу додай їх на /skills.")
+
         if roi_sections:
             fields = github_sync.roi_fields_from_sections(roi_sections)
             if automation.roi is None:

@@ -105,7 +105,11 @@ templates) and `src/static/style.css` (the oklch design-token system `models.py`
   `Automation`, `ROIEntry`, `AutomationPage`, `Connection`, `AutomationTodoItem`, and
   `ReviewLogEntry` rows, with specific clear-vs-preserve rules per file (e.g. an empty
   `## Pages` section only clears stale pages when `SUMMARY.md` was actually fetched).
-  Needs `GITHUB_TOKEN` in `.env` to read private repos.
+  `dashboard/SUMMARY.md`'s `## Skills` bullet list links the automation against the
+  skills library (`/skills`) by exact name match — unlike `## Departments`, an
+  unmatched skill name is skipped with a warning rather than auto-creating a bare
+  library entry, since the library is a curated catalog, not free-text tags. Needs
+  `GITHUB_TOKEN` in `.env` to read private repos.
 - **ClickUp** — not an active integration. `clickup_url` is a plain field set manually
   or via the sync payload above; there is no ClickUp fetch/parse code anywhere in `src/`.
 - **Telegram bot** (`src/telegram_bot.py`) — live today and load-bearing for the
