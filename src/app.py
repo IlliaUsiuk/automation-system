@@ -553,35 +553,86 @@ def register_routes(app):
         skills = Skill.query.order_by(Skill.name).all()
         return render_template("skills_library.html", skills=skills)
 
+    def _upsert_skill(name, description, repo_url, doc_url):
+        skill = Skill.query.filter_by(name=name).first()
+        if skill is None:
+            skill = Skill(name=name)
+            db.session.add(skill)
+        skill.description = description or skill.description
+        skill.repo_url = repo_url
+        skill.doc_url = doc_url
+        return skill
+
     def sync_skill_from_github(repo_url):
-        """One repo = one skill, its SKILL.md at repo root - the same shape
-        every skill under ~/.claude/skills already has. Looks up an existing
-        Skill by the parsed name first, so re-importing the same (or a
+        """One repo = one skill, its SKILL.md at repo root - the shape every
+        skill under ~/.claude/skills already has. Looks up an existing Skill
+        by the parsed name first, so re-importing the same (or a
         renamed-URL-but-same-name) repo updates that row instead of creating
         a duplicate entry. Raises on a GitHub fetch failure or a missing/
         malformed SKILL.md - the caller turns that into a flash message."""
-        parsed = github_sync.parse_repo_url(repo_url)
+        parsed = github_sync.parse_repo_or_folder_url(repo_url)
         if not parsed:
             raise ValueError("Не схоже на посилання на GitHub-репозиторій "
                               "(очікую https://github.com/власник/репо).")
-        owner_gh, repo = parsed
+        owner_gh, repo, branch, path = parsed
+        if branch is None:
+            branch = github_sync.default_branch(owner_gh, repo)
+        skill_path = f"{path}/SKILL.md" if path else "SKILL.md"
 
-        branch = github_sync.default_branch(owner_gh, repo)
-        skill_text = github_sync.fetch_raw_file(owner_gh, repo, "SKILL.md", branch)
+        skill_text = github_sync.fetch_raw_file(owner_gh, repo, skill_path, branch)
         if skill_text is None:
-            raise ValueError("SKILL.md не знайдено в корені цього репозиторію.")
+            raise ValueError(f"SKILL.md не знайдено за шляхом «{skill_path}».")
         fields = github_sync.parse_skill_md(skill_text)
         if not fields.get("name"):
             raise ValueError("SKILL.md знайдено, але в ньому немає поля 'name' у frontmatter.")
 
-        skill = Skill.query.filter_by(name=fields["name"]).first()
-        if skill is None:
-            skill = Skill(name=fields["name"])
-            db.session.add(skill)
-        skill.description = fields.get("description") or skill.description
-        skill.repo_url = repo_url
-        skill.doc_url = f"https://github.com/{owner_gh}/{repo}/blob/{branch}/SKILL.md"
-        return skill
+        return _upsert_skill(fields["name"], fields.get("description"), repo_url,
+                              f"https://github.com/{owner_gh}/{repo}/blob/{branch}/{skill_path}")
+
+    def sync_skills_from_github_folder(repo_url):
+        """Bulk import: repo_url points at a folder
+        (.../tree/<branch>/<path>) holding several skills as subdirectories,
+        each with its own SKILL.md - Supplax's shared-skills-repo convention
+        (e.g. giga-brdg/Skills_Supplax's .claude/skills/), alongside the
+        one-repo-per-skill convention sync_skill_from_github covers.
+        Best-effort per subdirectory: one missing/malformed SKILL.md is
+        reported and skipped, not a fatal error for the whole batch - a
+        shared repo commonly mixes real skills with a stray non-skill
+        folder. Raises only when the folder itself can't be read at all."""
+        parsed = github_sync.parse_repo_or_folder_url(repo_url)
+        if not parsed:
+            raise ValueError("Не схоже на посилання на GitHub-репозиторій "
+                              "(очікую https://github.com/власник/репо).")
+        owner_gh, repo, branch, path = parsed
+        if branch is None:
+            branch = github_sync.default_branch(owner_gh, repo)
+        if not path:
+            raise ValueError("Це посилання на весь репозиторій, а не на папку зі скілами — "
+                              "встав посилання виду .../tree/<гілка>/шлях/до/папки.")
+
+        entries = github_sync.list_directory(owner_gh, repo, path, branch)
+        if entries is None:
+            raise ValueError(f"Папку «{path}» не знайдено в цьому репозиторії.")
+        subdirs = [e["name"] for e in entries if e["type"] == "dir"]
+        if not subdirs:
+            raise ValueError(f"У папці «{path}» немає підпапок зі скілами.")
+
+        imported, skipped = [], []
+        for name in subdirs:
+            skill_path = f"{path}/{name}/SKILL.md"
+            skill_text = github_sync.fetch_raw_file(owner_gh, repo, skill_path, branch)
+            if skill_text is None:
+                skipped.append(f"{name} (немає SKILL.md)")
+                continue
+            fields = github_sync.parse_skill_md(skill_text)
+            if not fields.get("name"):
+                skipped.append(f"{name} (SKILL.md без поля 'name')")
+                continue
+            _upsert_skill(fields["name"], fields.get("description"),
+                          f"https://github.com/{owner_gh}/{repo}/tree/{branch}/{path}/{name}",
+                          f"https://github.com/{owner_gh}/{repo}/blob/{branch}/{skill_path}")
+            imported.append(fields["name"])
+        return imported, skipped
 
     @app.route("/skills/import-github", methods=["GET", "POST"])
     @login_required
@@ -589,20 +640,33 @@ def register_routes(app):
     def skill_import_github():
         if request.method == "POST":
             repo_url = request.form["repo_url"].strip()
+            is_folder = "/tree/" in repo_url
             try:
-                skill = sync_skill_from_github(repo_url)
+                if is_folder:
+                    imported, skipped = sync_skills_from_github_folder(repo_url)
+                else:
+                    skill = sync_skill_from_github(repo_url)
             except ValueError as e:
                 flash(str(e))
                 return redirect(url_for("skill_import_github"))
             except Exception:
                 db.session.rollback()
-                app.logger.exception("GitHub import failed for skill %s", repo_url)
+                app.logger.exception("GitHub import failed for skill(s) %s", repo_url)
                 flash("Не вдалося звернутися до GitHub — перевір посилання і чи репозиторій публічний "
                       "(або що GITHUB_TOKEN в .env дійсний, якщо приватний).")
                 return redirect(url_for("skill_import_github"))
 
             db.session.commit()
-            flash(f"Синхронізовано скіл «{skill.name}» з {repo_url}.")
+            if is_folder:
+                if imported:
+                    msg = f"Імпортовано {len(imported)} скіл(ів): {', '.join(imported)}."
+                else:
+                    msg = "Жодного скіла не імпортовано."
+                if skipped:
+                    msg += " Пропущено: " + ", ".join(skipped) + "."
+                flash(msg)
+            else:
+                flash(f"Синхронізовано скіл «{skill.name}» з {repo_url}.")
             return redirect(url_for("skills_library"))
         return render_template("skill_import.html")
 

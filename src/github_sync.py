@@ -14,12 +14,29 @@ import urllib.error
 import urllib.request
 
 REPO_URL_RE = re.compile(r"^https?://github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$")
+_TREE_URL_RE = re.compile(r"^https?://github\.com/([^/]+)/([^/]+?)/tree/([^/]+)/(.+?)/?$")
 
 
 def parse_repo_url(url):
     """Returns (owner, repo) or None if this doesn't look like a GitHub repo URL."""
     m = REPO_URL_RE.match(url.strip())
     return (m.group(1), m.group(2)) if m else None
+
+
+def parse_repo_or_folder_url(url):
+    """Like parse_repo_url, but also accepts a GitHub folder URL
+    (.../tree/<branch>/<path>) - Supplax's shared-skills-repo convention,
+    one repo holding several skills as subdirectories, alongside the
+    one-repo-per-skill convention parse_repo_url covers. Returns
+    (owner, repo, branch, path) or None; branch/path come back None for a
+    bare repo URL (caller resolves the branch itself, path is the repo
+    root - same shape a one-repo-per-skill import already expects)."""
+    url = url.strip()
+    m = _TREE_URL_RE.match(url)
+    if m:
+        return m.group(1), m.group(2), m.group(3), m.group(4)
+    parsed = parse_repo_url(url)
+    return (parsed[0], parsed[1], None, None) if parsed else None
 
 
 def _github_headers():
@@ -73,6 +90,28 @@ def fetch_raw_file(owner, repo, path, branch):
         if e.code == 404:
             return None
         raise
+
+
+def list_directory(owner, repo, path, branch):
+    """Lists a folder's direct entries via GitHub's Contents API - there's
+    no raw.githubusercontent.com equivalent for a directory listing, only
+    for individual files. Used to find each skill's subdirectory in
+    Supplax's shared-skills-repo convention. Returns a list of
+    {"name", "type"} dicts ("type" is "file" or "dir"), or None if the
+    path doesn't exist (a confirmed 404 - same missing-vs-error contract
+    as fetch_raw_file)."""
+    url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={branch}"
+    req = urllib.request.Request(url, headers=_github_headers())
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        raise
+    if not isinstance(data, list):
+        return None  # path pointed at a file, not a directory
+    return [{"name": e["name"], "type": e["type"]} for e in data]
 
 
 def fetch_latest_commit(owner, repo, branch):

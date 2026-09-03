@@ -53,10 +53,14 @@ templates) and `src/static/style.css` (the oklch design-token system `models.py`
   automator's profile page, with no create/update/delete operation exposed, so it
   doesn't belong lumped in with the create/update/delete routes above. `/skills` is
   the same GET-only shape for browsing the skills library, but it has one write
-  sibling: `/skills/import-github` (`@login_required`, `@automator_required`) fetches
-  `SKILL.md` from a repo's root (one repo = one skill, mirroring the automation
-  import shape below) and upserts a `Skill` row matched by name — a second import of
-  the same skill name updates that row instead of creating a duplicate. Two more
+  sibling: `/skills/import-github` (`@login_required`, `@automator_required`) accepts
+  two link shapes — a plain repo URL fetches `SKILL.md` from its root (one repo = one
+  skill, mirroring the automation import shape below), while a GitHub folder URL
+  (`.../tree/<branch>/<path>`, e.g. a shared repo's `.claude/skills/` — Supplax keeps
+  one at `giga-brdg/Skills_Supplax`) bulk-imports every subdirectory under that path as
+  its own skill, skipping (not failing the whole batch on) any subdirectory with no
+  valid `SKILL.md` — and upserts each `Skill` row matched by name, so a second import
+  of the same skill name updates that row instead of creating a duplicate. Two more
   routes reach out to GitHub for automations specifically —
   `/automations/import-github` (`@login_required`, `@automator_required`) and
   `/automations/<slug>/resync` (`@login_required`, plus an ownership check via
